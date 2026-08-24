@@ -1,0 +1,42 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCollection, render } from 'astro:content';
+
+const base = import.meta.env.BASE_URL;
+
+export async function getStaticPaths() {
+  const apps = await getCollection('apps');
+  return apps.map((app) => ({
+    params: { slug: app.id },
+    props: { app },
+  }));
+}
+
+const { app } = Astro.props;
+const { Content } = await render(app);
+---
+<Base title={app.data.name} description={app.data.description}>
+  <article class="article">
+    <header class="article-header">
+      <h1>{app.data.name}</h1>
+      <p class="lead">{app.data.description}</p>
+      <div class="meta">
+        {(app.data.tags ?? []).map((tag) => <span class="tag">{tag}</span>)}
+      </div>
+    </header>
+    <div class="prose">
+      <Content />
+    </div>
+    {app.data.url && (
+      <a class="btn" href={app.data.url} target="_blank" rel="noopener">
+        访问应用 →
+      </a>
+    )}
+    {app.data.repo && (
+      <a class="btn secondary" href={app.data.repo} target="_blank" rel="noopener">
+        查看源码 →
+      </a>
+    )}
+    <a class="back" href={base + 'apps/'}>← 返回应用列表</a>
+  </article>
+</Base>

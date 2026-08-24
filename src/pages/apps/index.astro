@@ -1,0 +1,25 @@
+---
+import Base from '../../layouts/Base.astro';
+import { getCollection } from 'astro:content';
+
+const base = import.meta.env.BASE_URL;
+
+const apps = (await getCollection('apps')).sort(
+  (a, b) => Number(b.data.featured) - Number(a.data.featured)
+);
+---
+<Base title="应用" description="我做过的应用介绍与链接">
+  <h1>我的应用</h1>
+  <p class="lead">这些是我做过的一些项目，点击查看详细介绍和链接。</p>
+  <div class="grid">
+    {apps.map((app) => (
+      <a class="card" href={base + 'apps/' + app.id + '/'}>
+        <h2>{app.data.name}</h2>
+        <p>{app.data.description}</p>
+        <div class="tags">
+          {(app.data.tags ?? []).map((tag) => <span class="tag">{tag}</span>)}
+        </div>
+      </a>
+    ))}
+  </div>
+</Base>
