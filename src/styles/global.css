@@ -151,3 +151,41 @@ main { padding: 40px 0 60px; }
   text-align: center;
 }
 .site-footer a { color: var(--primary); }
+
+/* 私有空间 */
+.private { max-width: 720px; }
+.private-form { display: flex; gap: 10px; margin: 24px 0; flex-wrap: wrap; }
+.private-form input {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 16px;
+  background: var(--surface);
+  color: var(--text);
+}
+.private-form button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+.private-form button:hover { background: var(--primary-dark); }
+.private-msg { min-height: 1.5em; margin: 8px 0; }
+.private-msg.error { color: #dc2626; }
+.private-post {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.private-post h2 { margin: 0 0 6px; }
+.private-meta { color: var(--muted); font-size: 14px; margin: 0 0 8px; }
+.private-post details { margin-top: 8px; }
+.private-post summary { cursor: pointer; color: var(--primary); }
+.private-body { margin-top: 12px; }
