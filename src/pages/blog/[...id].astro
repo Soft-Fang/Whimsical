@@ -1,0 +1,174 @@
+---
+// 博客文章阅读详情页
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { site } from '../../site.config';
+import ReadFrostedGlass from '../../components/ReadFrostedGlass.astro';
+import AnimateIn from '../../components/AnimateIn.astro';
+import type { CollectionEntry } from 'astro:content';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog');
+  return posts.map((post) => ({
+    params: { id: post.id },
+    props: { post },
+  }));
+}
+
+interface Props {
+  post: CollectionEntry<'blog'>;
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+const { title, description, pubDate, category, tags } = post.data;
+---
+
+<BaseLayout
+  title={title}
+  ogType="article"
+  ogDescription={description}
+  jsonLd={{
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: title,
+    description,
+    datePublished: pubDate,
+    author: { '@type': 'Person', name: site.author.name },
+    image: site.url + site.ogImage,
+  }}
+>
+  <div class="max-w-5xl mx-auto px-6 pt-24 pb-16 flex items-start gap-10">
+    <!-- 正文区 -->
+    <div class="flex-1 min-w-0 max-w-2xl mx-auto">
+    <ReadFrostedGlass>
+      <!-- 分类标签 -->
+      <AnimateIn delay={0}>
+      {category && (
+      <span class="inline-block text-xs font-medium tracking-wide uppercase
+                   text-accent bg-accent/10 px-2.5 py-1 rounded-full mb-3">
+        {category}
+      </span>
+      )}
+      </AnimateIn>
+
+    <!-- 标题 -->
+    <AnimateIn delay={80}>
+    <h1 class="text-4xl font-bold text-fg leading-tight">
+      {title}
+    </h1>
+    </AnimateIn>
+
+    <!-- 描述 -->
+    <AnimateIn delay={160}>
+    <p class="mt-3 text-fg/50 text-lg leading-relaxed">
+      {description}
+    </p>
+    </AnimateIn>
+
+    <!-- 日期 + 标签 -->
+    <AnimateIn delay={240}>
+    <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 pb-8 border-b border-fg/10">
+      <time datetime={pubDate} class="text-sm text-fg/35 font-mono">
+        {pubDate}
+      </time>
+      {tags && tags.length > 0 && (
+      <div class="flex flex-wrap gap-1.5">
+        {tags.map((tag) => (
+          <span class="text-sm text-fg/40">
+            #{tag}
+          </span>
+        ))}
+      </div>
+      )}
+    </div>
+    </AnimateIn>
+
+    <!-- id="post-content" 正文：prose 排版 -->
+    <AnimateIn delay={320}>
+    <div id="post-content" class="mt-8 prose prose-neutral dark:prose-invert max-w-none text-lg
+                prose-p:leading-relaxed prose-p:my-5 prose-p:text-fg
+                prose-headings:text-fg prose-headings:font-semibold prose-headings:mt-10 prose-headings:mb-5
+                prose-h2:text-2xl prose-h3:text-xl
+                prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+                prose-code:text-accent prose-code:bg-fg/5 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-base prose-code:font-normal
+                prose-pre:bg-fg/5 prose-pre:border prose-pre:border-fg/10 prose-pre:my-8 prose-pre:rounded-xl
+                prose-img:rounded-xl prose-img:my-8
+                prose-li:my-2 prose-li:leading-relaxed prose-li:text-fg
+                prose-blockquote:border-l-accent prose-blockquote:bg-fg/3 prose-blockquote:rounded-r-lg
+                prose-hr:border-fg/10 prose-hr:my-10
+                prose-strong:text-fg prose-strong:font-semibold
+                prose-table:border-fg/10">
+      <Content />
+    </div>
+    </AnimateIn>
+    </ReadFrostedGlass>
+    </div>
+
+    <!-- 右侧目录（桌面端显示，手机端隐藏） -->
+    <aside id="post-toc-aside" class="hidden md:block w-60 shrink-0 sticky top-24">
+      <ReadFrostedGlass>
+        <p class="text-xs tracking-[0.3em] uppercase text-fg/30 mb-3">目录</p>
+        <nav id="post-toc" class="flex flex-col gap-1 max-h-[60vh] overflow-y-auto no-scrollbar"></nav>
+      </ReadFrostedGlass>
+    </aside>
+  </div>
+
+  <script>
+    // @ts-nocheck
+    // ===== 前端扫描 h1-h2 生成文章目录 =====
+    const content = document.getElementById('post-content');
+    const toc = document.getElementById('post-toc');
+    if (content && toc) {
+      const headings = Array.from(content.querySelectorAll('h1, h2'));
+      const links: HTMLAnchorElement[] = [];
+
+      headings.forEach((h, i) => {
+        const id = 'post-heading-' + i;
+        h.id = id;
+        const a = document.createElement('a');
+        a.href = '#' + id;
+        a.className = 'text-sm text-fg/50 hover:text-accent transition-colors py-1 px-2 rounded-md border-l-2 border-transparent';
+        a.dataset.target = id;
+        a.textContent = h.textContent;
+        toc.appendChild(a);
+        links.push(a);
+      });
+
+      // 文章没有 h1/h2 时隐藏目录卡片
+      if (links.length === 0) {
+        const aside = document.getElementById('post-toc-aside');
+        if (aside) aside.classList.add('hidden');
+      }
+
+      // 点击目录项 → 平滑滚动到对应标题
+      toc.addEventListener('click', (e) => {
+        const el = e.target as HTMLElement | null;
+        const a = el?.closest<HTMLAnchorElement>('a[data-target]');
+        if (!a) return;
+        e.preventDefault();
+        const target = document.getElementById(a.dataset.target ?? '');
+        if (target) target.scrollIntoView({ behavior: 'smooth' });
+      });
+
+      // 滚动时高亮当前所在章节
+      function highlightCurrent() {
+        let currentId = null;
+        for (const h of headings) {
+          if (h.getBoundingClientRect().top <= 100) currentId = h.id;
+        }
+        for (const a of links) {
+          const active = a.dataset.target === currentId;
+          a.classList.toggle('text-accent', active);
+          a.classList.toggle('bg-accent/10', active);
+          a.classList.toggle('border-accent', active);
+          a.classList.toggle('font-medium', active);
+          a.classList.toggle('text-fg/50', !active);
+          a.classList.toggle('border-transparent', !active);
+        }
+      }
+      window.addEventListener('scroll', highlightCurrent, { passive: true });
+      highlightCurrent();
+    }
+  </script>
+</BaseLayout>

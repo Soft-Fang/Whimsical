@@ -1,0 +1,174 @@
+---
+// 相册详情页：展示单个相册的全部照片，支持点击放大（Lightbox）
+// 图片来自 src/assets/album/，构建时用 astro:assets 自动优化
+import fs from 'node:fs';
+import path from 'node:path';
+import { getImage } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import AnimateIn from '../../components/AnimateIn.astro';
+
+const albumRoot = path.join(process.cwd(), 'src', 'assets', 'album');
+
+export async function getStaticPaths() {
+  // 注意：getStaticPaths 是独立模块导出，访问不到 frontmatter 顶层的常量，
+  // 所以这里需要重新定义
+  const albumRoot = path.join(process.cwd(), 'src', 'assets', 'album');
+  // 目录不存在时返回空，保证基础模板（无相册目录）也能构建成功
+  if (!fs.existsSync(albumRoot)) return [];
+  const dirs = fs.readdirSync(albumRoot, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name);
+  return dirs.map((name) => ({ params: { album: name } }));
+}
+
+const { album } = Astro.params;
+
+// 动态导入所有相册图片（构建时静态分析）
+const albumModules = import.meta.glob(
+  '../../assets/album/**/*.{jpg,jpeg,png,webp,gif,avif}',
+  { eager: true, import: 'default' },
+) as Record<string, ImageMetadata>;
+
+// 筛选当前相册的图片，生成缩略图（800px）+ 大图（1920px）
+const entries = Object.entries(albumModules)
+  .filter(([p]) => p.includes(`/${album}/`))
+  .sort(([a], [b]) => a.localeCompare(b));
+
+const photos: { thumb: string; full: string }[] = [];
+for (const [, img] of entries) {
+  try {
+    const thumb = await getImage({ src: img, width: 800, format: 'webp' });
+    const full = await getImage({ src: img, width: 1920, format: 'webp' });
+    photos.push({ thumb: thumb.src, full: full.src });
+  } catch {
+    // 无法优化的图片跳过
+  }
+}
+---
+
+<BaseLayout title={`${album}`}>
+  <div class="max-w-4xl mx-auto px-6 pt-24 pb-16">
+    <a href={import.meta.env.BASE_URL + 'photo'} class="text-sm text-fg/40 hover:text-accent transition-colors">← 返回照片</a>
+    <h1 class="text-3xl font-bold mt-2 mb-1">{album}</h1>
+    <p class="text-sm text-fg/40 mb-8">{photos.length} 张照片</p>
+
+    {photos.length === 0 ? (
+      <p class="text-fg/50">这个相册还没有照片。</p>
+    ) : (
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {photos.map((photo, i) => (
+          <AnimateIn delay={i * 60}>
+            <button
+              class="lightbox-trigger w-full aspect-square rounded-xl overflow-hidden
+                     ring-1 ring-fg/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent
+                     group"
+              data-index={i}
+              data-full={photo.full}
+              aria-label={`查看第 ${i + 1} 张照片`}
+            >
+              <img
+                src={photo.thumb}
+                alt={`${album} 第 ${i + 1} 张`}
+                loading="lazy"
+                class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              />
+            </button>
+          </AnimateIn>
+        ))}
+      </div>
+    )}
+  </div>
+
+  <!-- Lightbox 灯箱 -->
+  <div
+    id="lightbox"
+    class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/85 backdrop-blur-sm"
+  >
+    <button id="lightbox-close" class="absolute top-5 right-5 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors" aria-label="关闭">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
+    <button id="lightbox-prev" class="absolute left-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors" aria-label="上一张">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path d="M15 19l-7-7 7-7" />
+      </svg>
+    </button>
+    <img
+      id="lightbox-img"
+      src=""
+      alt=""
+      class="max-h-[85vh] max-w-[85vw] rounded-xl shadow-2xl"
+    />
+    <button id="lightbox-next" class="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors" aria-label="下一张">
+      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path d="M9 5l7 7-7 7" />
+      </svg>
+    </button>
+    <span id="lightbox-count" class="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/70 text-sm font-mono"></span>
+  </div>
+
+  <script>
+    const triggers = Array.from(document.querySelectorAll<HTMLButtonElement>('.lightbox-trigger'));
+    const lightbox = document.getElementById('lightbox') as HTMLElement;
+    const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
+    const lightboxCount = document.getElementById('lightbox-count') as HTMLElement;
+    const closeBtn = document.getElementById('lightbox-close') as HTMLButtonElement;
+    const prevBtn = document.getElementById('lightbox-prev') as HTMLButtonElement;
+    const nextBtn = document.getElementById('lightbox-next') as HTMLButtonElement;
+
+    // 灯箱显示全尺寸大图：从按钮的 data-full 读取（astro:assets 优化的 1920px）
+    const srcs = triggers.map((t) => t.getAttribute('data-full') ?? '');
+
+    let current = 0;
+
+    function openLightbox(index: number) {
+      current = index;
+      lightboxImg.src = srcs[current] ?? '';
+      lightboxImg.alt = `照片 ${current + 1}`;
+      lightboxCount.textContent = `${current + 1} / ${srcs.length}`;
+      lightbox.classList.remove('hidden');
+      lightbox.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+      lightbox.classList.add('hidden');
+      lightbox.classList.remove('flex');
+      document.body.style.overflow = '';
+    }
+
+    function prev() {
+      openLightbox((current - 1 + srcs.length) % srcs.length);
+    }
+
+    function next() {
+      openLightbox((current + 1) % srcs.length);
+    }
+
+    triggers.forEach((t) => {
+      t.addEventListener('click', () => {
+        const index = parseInt(t.getAttribute('data-index') || '0', 10);
+        openLightbox(index);
+      });
+    });
+
+    closeBtn.addEventListener('click', closeLightbox);
+    prevBtn.addEventListener('click', prev);
+    nextBtn.addEventListener('click', next);
+
+    // 点击遮罩空白处关闭
+    lightbox.addEventListener('click', (e) => {
+      if (e.target === lightbox) closeLightbox();
+    });
+
+    // 键盘：Esc 关闭，左右方向键切换
+    document.addEventListener('keydown', (e) => {
+      if (lightbox.classList.contains('hidden')) return;
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') prev();
+      if (e.key === 'ArrowRight') next();
+    });
+  </script>
+</BaseLayout>

@@ -1,0 +1,53 @@
+---
+// 今日说法详情页：大卡片显示全部内容，markdown 内写 ![](图片路径) 即可显示图片
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ReadFrostedGlass from '../../components/ReadFrostedGlass.astro';
+import AnimateIn from '../../components/AnimateIn.astro';
+import type { CollectionEntry } from 'astro:content';
+
+export async function getStaticPaths() {
+  const talks = await getCollection('talk');
+  return talks.map((talk: CollectionEntry<'talk'>) => ({
+    params: { id: talk.id },
+    props: { talk },
+  }));
+}
+
+interface Props {
+  talk: CollectionEntry<'talk'>;
+}
+
+const { talk } = Astro.props;
+const { Content } = await render(talk);
+const { update } = talk.data;
+---
+
+<BaseLayout 
+ title={update || '动态'} 
+  ogType="article"
+>
+  <div class="max-w-2xl mx-auto px-6 pt-24 pb-16">
+    <ReadFrostedGlass>
+      <AnimateIn delay={0}>
+        <a href={import.meta.env.BASE_URL + 'talk'} class="text-sm text-fg/40 hover:text-accent transition-colors">
+          ← 返回今日说法
+        </a>
+        {update && (
+          <time class="block mt-4 text-sm text-fg/35 font-mono">{update}</time>
+        )}
+      </AnimateIn>
+
+      <AnimateIn delay={120}>
+        <div class="mt-8 prose prose-neutral dark:prose-invert max-w-none text-lg
+                    prose-p:leading-relaxed prose-p:my-5 prose-p:text-fg/80
+                    prose-headings:text-fg prose-headings:font-semibold
+                    prose-a:text-accent prose-a:no-underline hover:prose-a:underline
+                    prose-img:rounded-xl prose-img:my-6
+                    prose-strong:text-fg prose-blockquote:border-l-accent">
+          <Content />
+        </div>
+      </AnimateIn>
+    </ReadFrostedGlass>
+  </div>
+</BaseLayout>

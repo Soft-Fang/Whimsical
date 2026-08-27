@@ -1,0 +1,13 @@
+---
+// 照片页面：展示所有相册（AlbumCard 组件）
+import BaseLayout from '../layouts/BaseLayout.astro';
+import AlbumCard from '../components/AlbumCard.astro';
+---
+
+<BaseLayout title="照片">
+  <div class="max-w-4xl mx-auto px-6 pt-24 pb-16">
+    <p class="text-xs tracking-[0.3em] uppercase text-fg/30 mb-3">PHOTO / 相册</p>
+    <h1 class="text-3xl font-bold mb-8">照片</h1>
+    <AlbumCard />
+  </div>
+</BaseLayout>

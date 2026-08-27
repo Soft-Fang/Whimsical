@@ -1,0 +1,72 @@
+---
+// 博客文章列表组件：读取文章、按日期排序、渲染卡片列表
+import { getCollection } from 'astro:content';
+import AnimateIn from './AnimateIn.astro';
+import ReadFrostedGlass from './ReadFrostedGlass.astro';
+
+const posts = (await getCollection('blog')).sort(
+  (a, b) => b.data.pubDate.localeCompare(a.data.pubDate),
+);
+---
+
+<div class="max-w-2xl mx-auto px-6 pt-24 pb-16">
+  <p class="text-xs tracking-[0.3em] uppercase text-fg/30 mb-3">BLOG / 文章</p>
+  <h1 class="text-3xl font-bold mb-8">文章列表</h1>
+
+  {posts.length === 0 ? (
+    <p class="text-fg/50">还没有文章。</p>
+  ) : (
+    <div class="flex flex-col gap-4">
+      {posts.map((post, i) => {
+        const { title, description, pubDate, category, tags } = post.data;
+        const href = import.meta.env.BASE_URL + 'blog/' + post.id;
+        return (
+          <AnimateIn delay={i * 80}>
+            <a href={href} class="block group transition-all duration-300
+                                  hover:-translate-y-0.5">
+              <ReadFrostedGlass>
+                <!-- 标题 -->
+                <h2 class="text-lg font-bold text-fg group-hover:text-accent
+                           transition-colors duration-200 leading-snug">
+                  {title}
+                </h2>
+
+                <!-- 描述 / 副标题 -->
+                <p class="mt-2 text-sm text-fg/50 leading-relaxed line-clamp-2">
+                  {description}
+                </p>
+
+                <!-- 底部：日期 + 标签 + 分类 -->
+                <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <!-- 日期 -->
+                  <time datetime={pubDate} class="text-xs text-fg/35 font-mono">
+                    {pubDate}
+                  </time>
+
+                  <!-- 标签 -->
+                  {tags && tags.length > 0 && (
+                  <div class="flex flex-wrap gap-1.5">
+                    {tags.map((tag) => (
+                      <span class="text-xs text-fg/40 hover:text-accent transition-colors">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                  )}
+
+                  <!-- 分类标签（右侧） -->
+                  {category && (
+                  <span class="ml-auto text-xs font-medium tracking-wide uppercase
+                               text-accent bg-accent/10 px-2.5 py-1 rounded-full">
+                    {category}
+                  </span>
+                  )}
+                </div>
+              </ReadFrostedGlass>
+            </a>
+          </AnimateIn>
+        );
+      })}
+    </div>
+  )}
+</div>

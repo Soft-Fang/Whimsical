@@ -1,19 +1,45 @@
 {
-  "name": "my-personal-blog",
+  "name": "astro-blog-template",
+  "description": "A modern blog template built with Astro 7 and Tailwind CSS 4. Dark/light themes, wallpaper system, photo albums, daily talk, archive with search & tags, table of contents, full SEO, RSS and sitemap.",
+  "version": "1.0.0",
   "type": "module",
-  "version": "0.0.1",
-  "private": true,
+  "license": "MIT",
+  "homepage": "https://ruijieking.github.io/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ruijieking/New-blog-v3.git"
+  },
+  "keywords": [
+    "astro",
+    "astro-template",
+    "astro-blog",
+    "blog",
+    "blog-template",
+    "tailwindcss",
+    "tailwind",
+    "astro-component",
+    "withastro"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro",
-    "encrypt": "node scripts/encrypt.mjs"
+    "sync": "astro sync",
+    "astro": "astro"
   },
   "dependencies": {
-    "astro": "^5.0.0"
+    "@astrojs/rss": "^4.0.19",
+    "@astrojs/sitemap": "^3.7.3",
+    "@tailwindcss/typography": "^0.5.20",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.1.6",
+    "sharp": "^0.35.3",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
-    "marked": "^18.0.10"
+    "@types/node": "^26.1.1"
   }
 }

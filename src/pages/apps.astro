@@ -1,0 +1,41 @@
+---
+// 应用展示页：列出我做过的应用，带链接
+import BaseLayout from '../layouts/BaseLayout.astro';
+import AnimateIn from '../components/AnimateIn.astro';
+import { getCollection } from 'astro:content';
+
+const apps = (await getCollection('apps')).sort(
+  (a, b) => Number(b.data.featured) - Number(a.data.featured)
+);
+---
+<BaseLayout title="应用">
+  <div class="max-w-4xl mx-auto px-6 pt-24 pb-16">
+    <p class="text-xs tracking-[0.3em] uppercase text-fg/30 mb-3">APPS / 应用</p>
+    <h1 class="text-3xl font-bold mb-8">我的应用</h1>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {apps.map((app, i) => (
+        <AnimateIn delay={i * 80}>
+          <div class="p-6 rounded-2xl bg-bg/60 backdrop-blur-xl ring-1 ring-fg/10 h-full flex flex-col">
+            <h2 class="text-xl font-semibold">{app.data.name}</h2>
+            <p class="mt-2 text-fg/60 leading-relaxed">{app.data.description}</p>
+            {app.data.tags && app.data.tags.length > 0 && (
+              <div class="mt-3 flex flex-wrap gap-2">
+                {app.data.tags.map((tag) => (
+                  <span class="text-xs text-accent bg-accent/10 px-2.5 py-1 rounded-full">#{tag}</span>
+                ))}
+              </div>
+            )}
+            <div class="mt-auto pt-5 flex gap-4">
+              {app.data.url && (
+                <a href={app.data.url} target="_blank" rel="noopener" class="text-sm text-accent hover:underline">访问应用 →</a>
+              )}
+              {app.data.repo && (
+                <a href={app.data.repo} target="_blank" rel="noopener" class="text-sm text-fg/50 hover:text-accent">源码 ↗</a>
+              )}
+            </div>
+          </div>
+        </AnimateIn>
+      ))}
+    </div>
+  </div>
+</BaseLayout>

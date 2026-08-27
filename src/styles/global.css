@@ -1,191 +1,61 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+/* 5. 告诉 v4 去扫 .astro 里的类名（你旧项目验证过，不写它扫不到） */
+@source "../**/*.astro";
+/* 1. 清空默认调色板：产物里不再带 red/blue/green 几百个色，只留你定义的 */
+@theme {
+  --color-*: initial;
+}
+
+/* 2. inline 是关键：让 class 在编译时内联底层变量，明暗切换才会在运行时生效 */
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-fg: var(--c-fg);
+  --color-accent: var(--c-accent);
+}
+
+/* 3. 明模式的值 */
 :root {
-  --bg: #f7f8fa;
-  --surface: #ffffff;
-  --text: #1f2933;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --primary: #2563eb;
-  --primary-dark: #1d4ed8;
-  --radius: 12px;
-  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+  --c-bg: #fafafa;
+  --c-fg: #1a1a1a;
+  --c-accent: #2563eb;
 }
 
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", Roboto, Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  line-height: 1.7;
+/* 4. 暗模式的值：同名变量换一套值，引用语义色的 class 自动跟着变 */
+[data-theme="dark"] {
+  --c-bg: #0f0f12;
+  --c-fg: #e8e8ea;
+  --c-accent: #60a5fa;
 }
 
-a { color: inherit; text-decoration: none; }
-
-.container {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 0 20px;
+/* 隐藏横向滚动条（用于移动端可滚动的导航栏），桌面端不受影响 */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-.site-header {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+/* 桌面端垂直滚动条：变细 + 主题色圆角（明暗模式自动跟随） */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--c-fg) 25%, transparent);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--c-fg) 40%, transparent);
 }
 
-.nav-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 60px;
+/* Firefox 滚动条变细 */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--c-fg) 25%, transparent) transparent;
 }
 
-.brand { font-weight: 700; font-size: 18px; }
-
-.site-header nav { display: flex; gap: 20px; }
-.site-header nav a { color: var(--muted); }
-.site-header nav a:hover { color: var(--primary); }
-
-main { padding: 40px 0 60px; }
-
-.hero {
-  background: linear-gradient(135deg, #2563eb, #7c3aed);
-  color: #fff;
-  border-radius: var(--radius);
-  padding: 48px 32px;
-  margin-bottom: 48px;
-}
-.hero h1 { margin: 0 0 12px; font-size: 30px; }
-.hero p { margin: 0; opacity: .95; font-size: 17px; }
-
-.section-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-.section-head h2 { margin: 0; font-size: 22px; }
-.more { color: var(--primary); font-size: 14px; }
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
-  margin-bottom: 40px;
-}
-
-.card {
-  display: block;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-  box-shadow: var(--shadow);
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-.card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.08); }
-.card h2, .card h3 { margin: 0 0 8px; }
-.card time { color: var(--muted); font-size: 13px; }
-.card p { margin: 8px 0 0; color: var(--muted); }
-
-.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-.tag {
-  background: #eff6ff;
-  color: var(--primary-dark);
-  font-size: 12px;
-  padding: 2px 10px;
-  border-radius: 999px;
-}
-
-.list { display: flex; flex-direction: column; gap: 16px; }
-.lead { color: var(--muted); }
-
-.article { max-width: 720px; }
-.article-header { margin-bottom: 24px; }
-.article-header h1 { margin: 0 0 8px; font-size: 30px; }
-.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; margin-top: 8px; }
-
-.prose { font-size: 16px; }
-.prose h2 { margin-top: 2em; }
-.prose pre {
-  background: #1f2933;
-  color: #e5e7eb;
-  padding: 16px;
-  border-radius: 8px;
-  overflow-x: auto;
-}
-.prose code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 14px; }
-.prose blockquote {
-  margin: 16px 0;
-  padding: 4px 16px;
-  border-left: 4px solid var(--primary);
-  background: #eff6ff;
-  border-radius: 4px;
-  color: var(--muted);
-}
-.prose a { color: var(--primary); }
-.prose img { max-width: 100%; border-radius: 8px; }
-
-.btn {
-  display: inline-block;
-  background: var(--primary);
-  color: #fff !important;
-  padding: 10px 20px;
-  border-radius: 8px;
-  margin-right: 10px;
-  margin-top: 8px;
-}
-.btn.secondary { background: var(--surface); color: var(--text) !important; border: 1px solid var(--border); }
-
-.back { display: inline-block; margin-top: 32px; color: var(--muted); }
-
-.site-footer {
-  border-top: 1px solid var(--border);
-  background: var(--surface);
-  padding: 24px 0;
-  color: var(--muted);
-  font-size: 14px;
-  text-align: center;
-}
-.site-footer a { color: var(--primary); }
-
-/* 私有空间 */
-.private { max-width: 720px; }
-.private-form { display: flex; gap: 10px; margin: 24px 0; flex-wrap: wrap; }
-.private-form input {
-  flex: 1;
-  min-width: 200px;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 16px;
-  background: var(--surface);
-  color: var(--text);
-}
-.private-form button {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  background: var(--primary);
-  color: #fff;
-  font-size: 16px;
-  cursor: pointer;
-}
-.private-form button:hover { background: var(--primary-dark); }
-.private-msg { min-height: 1.5em; margin: 8px 0; }
-.private-msg.error { color: #dc2626; }
-.private-post {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-  margin-bottom: 16px;
-}
-.private-post h2 { margin: 0 0 6px; }
-.private-meta { color: var(--muted); font-size: 14px; margin: 0 0 8px; }
-.private-post details { margin-top: 8px; }
-.private-post summary { cursor: pointer; color: var(--primary); }
-.private-body { margin-top: 12px; }
