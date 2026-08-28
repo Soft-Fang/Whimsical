@@ -1,0 +1,45 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import TopicCard from '../../components/TopicCard.astro';
+import { getImage } from 'astro:assets';
+
+const base = import.meta.env.BASE_URL;
+
+const TOPICS = [
+  { slug: 'essay', name: '随笔' },
+  { slug: 'diary', name: '不定期日记' },
+  { slug: 'review', name: '复盘笔记' },
+  { slug: 'apps', name: '应用' },
+];
+
+const imgModules = import.meta.glob('/src/assets/**/*.{jpg,jpeg,png,webp}', { eager: true });
+const imgList = [];
+for (const mod of Object.values(imgModules)) {
+  if (mod && mod.default) imgList.push(mod.default);
+}
+
+const topics = [];
+for (let i = 0; i < TOPICS.length; i++) {
+  const m = imgList.length ? imgList[i % imgList.length] : null;
+  const opt = m ? await getImage({ src: m, width: 480, format: 'webp' }) : null;
+  topics.push({ slug: TOPICS[i].slug, name: TOPICS[i].name, image: opt ? opt.src : null });
+}
+
+const left = topics.filter((_, i) => i % 2 === 0);
+const right = topics.filter((_, i) => i % 2 === 1);
+---
+<BaseLayout title="专题" description="按专题浏览文章与应用">
+  <div class="max-w-4xl mx-auto px-6 pt-24 pb-16">
+    <p class="text-xs tracking-[0.3em] uppercase text-fg/30 mb-3">TOPICS / 专题</p>
+    <h1 class="text-3xl font-bold mb-10">专题</h1>
+
+    <div class="flex gap-6 items-start">
+      <div class="flex-1 flex flex-col gap-6">
+        {left.map((t) => <TopicCard href={base + 'topics/' + t.slug} name={t.name} image={t.image} />)}
+      </div>
+      <div class="flex-1 flex flex-col gap-6 pt-20">
+        {right.map((t) => <TopicCard href={base + 'topics/' + t.slug} name={t.name} image={t.image} />)}
+      </div>
+    </div>
+  </div>
+</BaseLayout>

@@ -1,6 +1,7 @@
 ---
 title: "用 Git 实现多端同步"
 pubDate: "2026-08-23"
+category: "复盘笔记"
 description: "换一台电脑也能快速继续维护博客的方法。"
 tags:
   - Git

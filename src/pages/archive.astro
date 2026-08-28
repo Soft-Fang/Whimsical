@@ -1,9 +1,357 @@
 ---
-// 归档页面
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Archive from '../components/Archive.astro';
----
+import { getCollection } from 'astro:content';
 
-<BaseLayout title="归档">
-  <Archive />
+const base = import.meta.env.BASE_URL;
+const posts = (await getCollection('blog')).sort(
+  (a, b) => b.data.pubDate.localeCompare(a.data.pubDate)
+);
+const data = posts.map((p) => ({
+  id: p.id,
+  title: p.data.title,
+  pubDate: p.data.pubDate,
+  references: p.data.references ?? [],
+}));
+const dataJson = JSON.stringify(data);
+---
+<BaseLayout title="归档" description="文章星空图">
+  <div id="archive-app" data-base={base} class="max-w-5xl mx-auto px-6 pt-24 pb-16">
+    <p class="text-xs tracking-[0.3em] uppercase text-fg/30 mb-3">ARCHIVE / 归档</p>
+    <h1 class="text-3xl font-bold mb-6">归档 · 星空图</h1>
+    <p class="text-sm text-fg/50 mb-6">光球围绕中心旋转；右侧树点选文章，或单击光球选中后停止旋转，双击进入文章。</p>
+
+    <div id="archive-data" hidden>{dataJson}</div>
+
+    <div class="flex flex-col md:flex-row gap-6 items-start">
+      <div class="flex-1 w-full">
+        <canvas id="starfield" class="w-full block rounded-2xl backdrop-blur-xl bg-bg/25 ring-1 ring-fg/10" style="height: 520px;"></canvas>
+      </div>
+      <aside class="w-full md:w-56 shrink-0">
+        <p class="text-xs uppercase text-fg/30 mb-3">时间轴</p>
+        <div id="archive-timeline" class="text-sm"></div>
+      </aside>
+    </div>
+
+    <div class="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-fg/50">
+      <span class="inline-flex items-center gap-2"><span class="inline-block w-6 h-0.5 bg-accent"></span>引用（我引用了谁）</span>
+      <span class="inline-flex items-center gap-2"><span class="inline-block w-6 h-0.5 bg-fg/60"></span>被引用（谁引用了我）</span>
+    </div>
+  </div>
+
+  <div id="archive-tooltip"></div>
 </BaseLayout>
+
+<style is:global>
+  #archive-tooltip {
+    position: fixed;
+    z-index: 999;
+    display: none;
+    pointer-events: none;
+    max-width: 260px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--c-bg) 88%, transparent);
+    color: var(--c-fg);
+    font-size: 13px;
+    line-height: 1.5;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  }
+  .tree-year { margin-top: 12px; font-weight: 600; color: var(--c-fg); }
+  .tree-month { margin: 6px 0 2px; padding-left: 12px; font-size: 12px; color: var(--c-fg); opacity: 0.5; }
+  .tree-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 4px 8px 4px 24px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--c-fg);
+    opacity: 0.75;
+    transition: opacity .15s ease, background-color .15s ease;
+  }
+  .tree-item:hover { opacity: 1; background: color-mix(in srgb, var(--c-fg) 6%, transparent); }
+  .tree-item.active { opacity: 1; color: var(--c-accent); background: color-mix(in srgb, var(--c-accent) 12%, transparent); }
+</style>
+
+<script>
+(function () {
+  const dataEl = document.getElementById('archive-data');
+  const app = document.getElementById('archive-app');
+  const canvas = document.getElementById('starfield');
+  const timeline = document.getElementById('archive-timeline');
+  const tooltip = document.getElementById('archive-tooltip');
+  if (!dataEl || !app || !canvas) return;
+
+  const base = app.dataset.base || '/';
+  let posts = [];
+  try { posts = JSON.parse(dataEl.textContent.trim()); } catch (e) { posts = []; }
+  const ctx = canvas.getContext('2d');
+
+  const css = getComputedStyle(document.documentElement);
+  const accent = css.getPropertyValue('--c-accent').trim() || '#2563eb';
+  const fg = css.getPropertyValue('--c-fg').trim() || '#1a1a1a';
+
+  const PALETTE = ['#5b9dff', '#ff9eb5', '#7fd1a8', '#ffd166', '#c792ea', '#ff8a5c', '#64d8ff', '#ff7aa2', '#9be15d', '#6c8cff'];
+
+  let cssW = 0;
+  let cssH = 0;
+  let selectedId = null;
+  let frozenIds = new Set();
+  let lastClickTime = 0;
+  let lastClickId = null;
+  let lastTreeClickTime = 0;
+  let lastTreeClickId = null;
+  const orbs = [];
+  const orbsById = {};
+
+  function hashStr(s) {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; }
+    return h / 4294967295;
+  }
+
+  function setup() {
+    posts.forEach(function (p) {
+      const o = {
+        id: p.id,
+        title: p.title,
+        pubDate: p.pubDate,
+        refs: p.references || [],
+        color: PALETTE[Math.floor(hashStr(p.id) * PALETTE.length) % PALETTE.length],
+        r: 5,
+        cx: 0,
+        cy: 0,
+        radiusFactor: 0.16 + hashStr(p.id + ':r') * 0.28,
+        theta: Math.random() * Math.PI * 2,
+        omega: (0.009 + Math.random() * 0.012) * (Math.random() < 0.5 ? 1 : -1),
+        R: 0,
+        x: 0,
+        y: 0,
+        trail: []
+      };
+      orbs.push(o);
+      orbsById[p.id] = o;
+    });
+  }
+
+  function resize() {
+    cssW = canvas.clientWidth || canvas.parentElement.clientWidth || 800;
+    cssH = parseInt(canvas.style.height, 10) || 520;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const cx = cssW / 2;
+    const cy = cssH / 2;
+    const minDim = Math.min(cssW, cssH);
+    orbs.forEach(function (o) {
+      o.cx = cx;
+      o.cy = cy;
+      o.R = Math.min(o.radiusFactor * minDim, minDim / 2 - 28);
+      o.x = cx + o.R * Math.cos(o.theta);
+      o.y = cy + o.R * Math.sin(o.theta);
+      o.trail.length = 0;
+    });
+  }
+
+  function recomputeFrozen() {
+    frozenIds = new Set();
+    if (!selectedId) return;
+    frozenIds.add(selectedId);
+    const sel = orbsById[selectedId];
+    if (!sel) return;
+    (sel.refs || []).forEach(function (r) { frozenIds.add(r); });
+    orbs.forEach(function (o) {
+      if ((o.refs || []).indexOf(selectedId) >= 0) frozenIds.add(o.id);
+    });
+  }
+
+  function updateOrb(o) {
+    o.theta += o.omega;
+    o.x = o.cx + o.R * Math.cos(o.theta);
+    o.y = o.cy + o.R * Math.sin(o.theta);
+    o.trail.push({ x: o.x, y: o.y });
+    if (o.trail.length > 24) o.trail.shift();
+  }
+
+  function line(a, b, color, width, dash) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.setLineDash(dash || []);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function drawConnections() {
+    if (!selectedId) return;
+    const sel = orbsById[selectedId];
+    if (!sel) return;
+    (sel.refs || []).forEach(function (refId) {
+      const t = orbsById[refId];
+      if (t) line(sel, t, accent, 1.5, []);
+    });
+    orbs.forEach(function (o) {
+      if ((o.refs || []).indexOf(selectedId) >= 0) line(o, sel, fg, 1.2, [5, 4]);
+    });
+  }
+
+  function drawOrb(o, isSel, isConn) {
+    const trail = o.trail;
+    for (let i = 1; i < trail.length; i++) {
+      const a = (i / trail.length) * 0.8;
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = o.color;
+      ctx.lineWidth = (i / trail.length) * 3.2;
+      ctx.beginPath();
+      ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
+      ctx.lineTo(trail[i].x, trail[i].y);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.shadowColor = o.color;
+    ctx.shadowBlur = isSel ? 26 : (isConn ? 20 : 14);
+    ctx.fillStyle = o.color;
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, o.r * 0.52, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (isSel || isConn) {
+      ctx.strokeStyle = isSel ? '#ffffff' : 'rgba(255,255,255,0.55)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(o.x, o.y, o.r + 5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, cssW, cssH);
+    drawConnections();
+    const sel = selectedId ? orbsById[selectedId] : null;
+    orbs.forEach(function (o) {
+      const isSel = sel && o.id === sel.id;
+      const isConn = sel && o.id !== sel.id && frozenIds.has(o.id);
+      drawOrb(o, Boolean(isSel), Boolean(isConn));
+    });
+  }
+
+  function frame() {
+    orbs.forEach(function (o) {
+      if (frozenIds.has(o.id)) { o.trail.length = 0; return; }
+      updateOrb(o);
+    });
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  function hitTest(mx, my) {
+    let best = null;
+    let bd = 18;
+    for (const o of orbs) {
+      const d = Math.hypot(o.x - mx, o.y - my);
+      if (d < bd) { bd = d; best = o; }
+    }
+    return best;
+  }
+
+  function mousePos(e) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function select(id) {
+    selectedId = (selectedId === id) ? null : id;
+    recomputeFrozen();
+    updateTreeActive();
+  }
+
+  function updateTreeActive() {
+    timeline.querySelectorAll('.tree-item').forEach(function (b) {
+      b.classList.toggle('active', b.dataset.id === selectedId);
+    });
+  }
+
+  canvas.addEventListener('mousemove', function (e) {
+    const m = mousePos(e);
+    const p = hitTest(m.x, m.y);
+    if (p) {
+      canvas.style.cursor = 'pointer';
+      tooltip.textContent = p.title + ' · ' + p.pubDate;
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY + 14) + 'px';
+      tooltip.style.display = 'block';
+    } else {
+      canvas.style.cursor = 'default';
+      tooltip.style.display = 'none';
+    }
+  });
+
+  canvas.addEventListener('click', function (e) {
+    const m = mousePos(e);
+    const p = hitTest(m.x, m.y);
+    if (!p) {
+      if (selectedId) { selectedId = null; recomputeFrozen(); updateTreeActive(); }
+      lastClickId = null;
+      return;
+    }
+    const now = Date.now();
+    if (lastClickId === p.id && now - lastClickTime < 350) {
+      window.location.href = base + 'blog/' + p.id;
+      return;
+    }
+    lastClickTime = now;
+    lastClickId = p.id;
+    select(p.id);
+  });
+
+  const byYear = {};
+  posts.forEach(function (p) {
+    const y = p.pubDate.slice(0, 4);
+    const m = p.pubDate.slice(5, 7);
+    if (!byYear[y]) byYear[y] = {};
+    if (!byYear[y][m]) byYear[y][m] = [];
+    byYear[y][m].push(p);
+  });
+  const years = Object.keys(byYear).sort().reverse();
+  let html = '';
+  years.forEach(function (y) {
+    html += '<div class="tree-year">' + y + '</div>';
+    const months = Object.keys(byYear[y]).sort().reverse();
+    months.forEach(function (m) {
+      html += '<div class="tree-month">' + m + '月</div>';
+      byYear[y][m].forEach(function (p) {
+        html += '<button type="button" class="tree-item" data-id="' + p.id + '">' + p.title + '</button>';
+      });
+    });
+  });
+  timeline.innerHTML = html;
+  timeline.addEventListener('click', function (e) {
+    const btn = e.target && e.target.closest ? e.target.closest('.tree-item') : null;
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const now = Date.now();
+    if (lastTreeClickId === id && now - lastTreeClickTime < 350) {
+      window.location.href = base + 'blog/' + id;
+      return;
+    }
+    lastTreeClickTime = now;
+    lastTreeClickId = id;
+    select(id);
+  });
+
+  setup();
+  resize();
+  window.addEventListener('resize', resize);
+  requestAnimationFrame(frame);
+})();
+</script>

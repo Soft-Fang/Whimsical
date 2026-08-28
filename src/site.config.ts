@@ -28,10 +28,8 @@ export const site = {
 
   // 导航栏（href + 显示文字，数组顺序即显示顺序）
   nav: [
-    { href: '/blog', label: '文章' },
+    { href: '/topics', label: '专题' },
     { href: '/archive', label: '归档' },
-    { href: '/apps', label: '应用' },
-    { href: '/private', label: '私有' },
     { href: '/about', label: '关于我' },
   ],
 };

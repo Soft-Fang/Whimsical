@@ -1,7 +1,5 @@
 ---
-// 首页：首屏 Hero（壁纸背景）+ 向下滚动提示 + 最新文章
 import BaseLayout from '../layouts/BaseLayout.astro';
-import AnimateIn from '../components/AnimateIn.astro';
 import ReadFrostedGlass from '../components/ReadFrostedGlass.astro';
 import { getCollection } from 'astro:content';
 import { site } from '../site.config';
@@ -23,29 +21,31 @@ const posts = (await getCollection('blog'))
     ],
   }}
 >
-  <section class="relative min-h-screen flex flex-col items-center justify-center px-6 text-center">
-    <AnimateIn>
+  <section class="relative min-h-screen flex flex-col items-center justify-center px-6 text-center overflow-hidden">
+    <div id="hero-content" style="will-change: transform, opacity;">
       <p class="text-xs tracking-[0.3em] uppercase text-fg/30 mb-3">WELCOME / 欢迎</p>
       <h1 class="text-4xl md:text-6xl font-bold">{site.name}</h1>
       <p class="mt-5 text-lg text-fg/60 max-w-xl mx-auto">{site.description}</p>
-    </AnimateIn>
-
-    <a href="#latest" class="absolute bottom-8 left-1/2 -translate-x-1/2 p-2 text-fg/40 hover:text-accent transition-colors animate-bounce" aria-label="向下滚动">
-      <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-        <path d="M19 9l-7 7-7-7" />
-      </svg>
-    </a>
+    </div>
   </section>
 
+  <div id="scroll-hint" class="fixed bottom-8 left-0 right-0 flex justify-center pointer-events-none transition-opacity duration-300">
+    <a href="#latest" class="pointer-events-auto p-2 text-fg/40 hover:text-accent" aria-label="向下滚动">
+      <span class="inline-block animate-bounce">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 9l-7 7-7-7" /></svg>
+      </span>
+    </a>
+  </div>
+
   <section id="latest" class="max-w-2xl mx-auto px-6 pb-20">
-    <AnimateIn>
+    <div class="reveal">
       <p class="text-xs tracking-[0.3em] uppercase text-fg/30 mb-3">LATEST / 最新文章</p>
       <h2 class="text-3xl font-bold mb-8">最新文章</h2>
-    </AnimateIn>
+    </div>
 
     <div class="flex flex-col gap-4">
       {posts.map((post, i) => (
-        <AnimateIn delay={i * 80}>
+        <div class="reveal" style={{ transitionDelay: (i * 90) + 'ms' }}>
           <a href={base + 'blog/' + post.id} class="block group transition-all duration-300 hover:-translate-y-0.5">
             <ReadFrostedGlass>
               <h3 class="text-lg font-bold text-fg group-hover:text-accent transition-colors duration-200 leading-snug">{post.data.title}</h3>
@@ -60,12 +60,60 @@ const posts = (await getCollection('blog'))
               </div>
             </ReadFrostedGlass>
           </a>
-        </AnimateIn>
+        </div>
       ))}
     </div>
 
-    <div class="mt-10">
-      <a href={base + 'blog'} class="text-sm text-accent hover:underline">查看全部文章 →</a>
+    <div class="reveal mt-10">
+      <a href={base + 'topics'} class="text-sm text-accent hover:underline">查看全部文章 →</a>
     </div>
   </section>
 </BaseLayout>
+
+<style is:global>
+  .reveal {
+    opacity: 0;
+    transform: translateY(48px);
+    transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .reveal.is-in {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>
+
+<script>
+  const heroContent = document.getElementById('hero-content');
+  const hint = document.getElementById('scroll-hint');
+
+  function onScroll() {
+    const y = window.scrollY;
+    if (heroContent) {
+      heroContent.style.transform = 'translateY(' + (y * 0.35) + 'px)';
+      heroContent.style.opacity = String(Math.max(0, 1 - y / 420));
+    }
+    if (hint) {
+      const gone = y > 30;
+      hint.classList.toggle('opacity-0', gone);
+      hint.classList.toggle('pointer-events-none', gone);
+      hint.style.transform = 'translateY(' + (y * 0.6) + 'px)';
+    }
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  const reveals = document.querySelectorAll('.reveal');
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    reveals.forEach(function (el) { io.observe(el); });
+  } else {
+    reveals.forEach(function (el) { el.classList.add('is-in'); });
+  }
+</script>

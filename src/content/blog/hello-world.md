@@ -1,10 +1,13 @@
 ---
 title: "Hello，这是我的第一篇博客"
 pubDate: "2026-08-24"
+category: "随笔"
 description: "网站搭好了，写篇文章说明这个博客用来做什么。"
 tags:
   - 随笔
   - 博客
+references:
+  - learning-git
 ---
 
 欢迎来到我的博客！

@@ -77,7 +77,7 @@ function navClass(href: string) {
   </script>
   </head>
 
-  <body class="bg-bg text-fg min-h-screen flex flex-col">
+  <body data-base={base} class="bg-bg text-fg min-h-screen flex flex-col">
     <!-- 全宽导航条：logo 在最左，导航+主题/壁纸在最右，中间留空 -->
     <header class="sticky top-4 z-50">
       <div class="flex items-center justify-between w-full px-20 py-4
@@ -92,7 +92,7 @@ function navClass(href: string) {
           <!-- 桌面导航（md 及以上横排显示，仅导航链接） -->
           <nav class="hidden md:flex items-center gap-1">
             {site.nav.map((item) => (
-              <a href={link(item.href)} class:list={['px-3 py-1.5 rounded-full transition-all duration-200', navClass(item.href)]}>{item.label}</a>
+              <a href={link(item.href)} data-nav={item.href} class:list={['px-3 py-1.5 rounded-full transition-all duration-200', navClass(item.href)]}>{item.label}</a>
             ))}
           </nav>
           <ThemeToggle />
@@ -125,7 +125,7 @@ function navClass(href: string) {
     >
       {site.nav.map((item) => (
         <a
-          href={link(item.href)}
+          href={link(item.href)} data-nav={item.href}
           class:list={['px-3 py-2.5 rounded-xl text-sm transition-colors', navClass(item.href)]}
         >
           {item.label}
@@ -185,5 +185,25 @@ function navClass(href: string) {
     });
   </script>
 
-  </body>
+  
+<script>
+  const aboutLinks = document.querySelectorAll('a[data-nav="/about"]');
+  const basePath = document.body.dataset.base || '/';
+  let aboutTimer = null;
+  aboutLinks.forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (aboutTimer) {
+        clearTimeout(aboutTimer);
+        aboutTimer = null;
+        window.location.href = basePath + 'private';
+      } else {
+        aboutTimer = setTimeout(function () {
+          aboutTimer = null;
+          window.location.href = a.getAttribute('href');
+        }, 280);
+      }
+    });
+  });
+</script>  </body>
 </html>
