@@ -25,3 +25,6 @@ pnpm-debug.log*
 
 # 私有笔记明文（仅本地，加密后才提交）
 private-notes/
+
+# 本地维护教程（不上传）
+维护教程.md

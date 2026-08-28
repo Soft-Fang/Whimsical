@@ -55,6 +55,7 @@
 
 /* Firefox 滚动条变细 */
 html {
+  scroll-behavior: smooth;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--c-fg) 25%, transparent) transparent;
 }
