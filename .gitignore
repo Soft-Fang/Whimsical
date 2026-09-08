@@ -31,3 +31,15 @@ content/private/
 
 # 本地维护教程（不上传）
 维护教程.md
+
+# Claudian 会话数据（不提交）
+.claudian/
+
+# 个人学习/职业规划副产物（仅本地，不公开）
+content/study/
+
+# Obsidian 绘图（仅本地）
+Excalidraw/
+
+# Obsidian 仪表盘（仅本地）
+content/仪表盘.md

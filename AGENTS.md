@@ -5,6 +5,7 @@
 - 线上地址：https://soft-fang.github.io/Whimsical/
 - 本地约定路径：D:\wangtianyu\ForMyself\Whimsical
 - `base` 为 `/Whimsical/`，**不要改** `astro.config.mjs` 里的 base，也不要改 `src/site.config.ts` 的 url 结构。
+- 开始任何改动前，先阅读 `维护教程.md`（含各文件夹「定性」，是本仓库的使用宪法）。
 
 ## 目录结构
 - `content/`           所有 Markdown 内容的根目录，也是 Obsidian vault（在 Obsidian 里打开这个文件夹）
@@ -13,9 +14,9 @@
 - `content/talk/`      短句 / 碎碎念
 - `content/drafts/`    草稿（不渲染、可提交同步；敏感草稿放 content/private）
 - `content/private/`   私有明文（**gitignore，永不提交**），加密后生成 `src/data/private-posts.json`
-- `content/templates/` 写作模板：博客文章 / 复盘笔记 / 决策日志
+- `content/templates/` 写作模板（每个内容文件夹一个，新建文件自动套用）：博客文章 / 碎碎念 / 应用 / 草稿 / 私人 / 学习
 - `scripts/`           工具：encrypt.mjs（私有区加密）、check.mjs（内容体检）
-- `维护教程.md`        本地维护说明（**gitignore，不上传**）
+- `维护教程.md`        本地维护说明（**gitignore，不上传**）——**每次改动前先读它**，含各文件夹定性
 
 ## 内容规范（frontmatter）
 blog 文章必填：`title`、`description`、`pubDate`（YYYY-MM-DD）。
