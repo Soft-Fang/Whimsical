@@ -28,7 +28,9 @@
     "build": "astro build",
     "preview": "astro preview",
     "sync": "astro sync",
-    "astro": "astro"
+    "astro": "astro",
+    "encrypt": "node scripts/encrypt.mjs",
+    "check": "node scripts/check.mjs"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.19",

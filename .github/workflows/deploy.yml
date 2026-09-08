@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # 构建阶段：安装依赖 → 构建 Astro → 上传产物
+  # 构建阶段：安装依赖 → 内容体检 → 构建 Astro → 上传产物
   build:
     runs-on: ubuntu-latest
     steps:
@@ -35,6 +35,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Content check
+        run: npm run check
 
       - name: Build
         run: npm run build

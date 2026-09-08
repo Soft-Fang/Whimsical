@@ -6,6 +6,9 @@ description: "换一台电脑也能快速继续维护博客的方法。"
 tags:
   - Git
   - 教程
+status: published
+links:
+  - hello-world
 ---
 
 把整个博客项目托管到 GitHub 后，在任何电脑上都能快速恢复环境。

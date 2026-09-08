@@ -6,6 +6,9 @@ description: "网站搭好了，写篇文章说明这个博客用来做什么。
 tags:
   - 随笔
   - 博客
+status: published
+links:
+  - starfield-test
 references:
   - learning-git
 ---
@@ -26,7 +29,7 @@ references:
 - 引用
 - 链接
 
-> 想更新内容时，在 `src/content/blog/` 目录下新建一个 `.md` 文件即可。
+> 想更新内容时，在 `content/blog/` 目录下新建一个 `.md` 文件即可。
 
 ## 代码示例
 

@@ -6,6 +6,7 @@ description: "一篇用于测试星空图连线与拖尾效果的示例文章。
 tags:
   - 测试
   - 归档
+status: published
 references:
   - hello-world
   - learning-git

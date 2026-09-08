@@ -6,7 +6,7 @@ import { marked } from 'marked';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
-const notesDir = join(root, 'private-notes');
+const notesDir = join(root, 'content', 'private');
 const outFile = join(root, 'src', 'data', 'private-posts.json');
 const iterations = 600000;
 
@@ -83,13 +83,13 @@ async function main() {
   }
 
   if (!existsSync(notesDir)) {
-    console.error('缺少 private-notes 目录，请先创建并放入 .md 笔记文件。');
+    console.error('缺少 content/private 目录，请先创建并放入 .md 笔记文件。');
     process.exit(1);
   }
 
   const files = readdirSync(notesDir).filter(function (f) { return f.endsWith('.md'); }).sort();
   if (files.length === 0) {
-    console.error('private-notes 目录里没有 .md 文件。');
+    console.error('content/private 目录里没有 .md 文件。');
     process.exit(1);
   }
 
@@ -119,7 +119,7 @@ async function main() {
   mkdirSync(dirname(outFile), { recursive: true });
   writeFileSync(outFile, JSON.stringify(out, null, 2), 'utf8');
   console.log('已加密 ' + posts.length + ' 篇私有笔记 -> ' + outFile);
-  console.log('private-notes/ 与 .env 不会被提交到 Git。');
+  console.log('content/private/ 与 .env 不会被提交到 Git。');
 }
 
 main().catch(function (e) {

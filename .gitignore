@@ -23,8 +23,11 @@ pnpm-debug.log*
 # jetbrains setting folder
 .idea/
 
+# Obsidian 本地配置（不提交）
+.obsidian/
+
 # 私有笔记明文（仅本地，加密后才提交）
-private-notes/
+content/private/
 
 # 本地维护教程（不上传）
 维护教程.md
