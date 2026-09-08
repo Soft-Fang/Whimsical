@@ -1,4 +1,4 @@
-# 我的博客（Whimsical）
+# Whimsical
 
 基于 Astro 7 + Tailwind CSS 4 的个人博客，免费托管在 GitHub Pages。
 主题来自 [good-looking-basics-blog](https://astro.build/themes/details/good-looking-basics-blog/)。

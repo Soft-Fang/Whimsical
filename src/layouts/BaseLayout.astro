@@ -11,7 +11,7 @@ const {
   ogDescription = site.description,
   jsonLd,
 } = Astro.props;
-const pageTitle = title ? `${title} — ${site.name}` : site.defaultTitle;
+const pageTitle = title ? `${site.name}` : site.defaultTitle;
 // SEO 使用的站点域名（site.url 留空时用占位域名）
 const siteUrl = site.url || 'https://example.com';
 const currentPath = Astro.url.pathname;
