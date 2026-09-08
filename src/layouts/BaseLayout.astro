@@ -205,5 +205,17 @@ function navClass(href: string) {
       }
     });
   });
-</script>  </body>
+</script>  
+  <!-- Live2D 看板娘：oh-my-live2d（CDN 自动装载，默认模型） -->
+  <script is:inline>
+    (function () {
+      if (document.getElementById('oml2d-script')) return;
+      var s = document.createElement('script');
+      s.id = 'oml2d-script';
+      s.src = 'https://cdn.jsdelivr.net/npm/oh-my-live2d/dist/index.min.js';
+      s.async = true;
+      document.body.appendChild(s);
+    })();
+  </script>
+</body>
 </html>

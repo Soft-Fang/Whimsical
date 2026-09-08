@@ -2,17 +2,27 @@ import { defineCollection } from 'astro:content';
 import { glob } from 'astro/loaders';
 import { z } from 'astro/zod';
 
-// 容错：Obsidian 的 tags/links/references 可能写成单个字符串，这里统一转成数组
-const stringList = z
-  .union([z.array(z.string()), z.string()])
-  .transform((v) => (Array.isArray(v) ? v : [v]));
+// 容错：Obsidian/QuickAdd 可能写成单个字符串、空值(null)，或未加引号的日期
+const stringList = z.preprocess(
+  (v) => (v == null ? [] : v),
+  z.union([z.array(z.string()), z.string()]).transform((v) => (Array.isArray(v) ? v : [v]))
+);
+
+// pubDate 允许字符串或 YAML 日期对象（未加引号的 2026-09-08 会被解析成 Date），统一转成 YYYY-MM-DD 字符串
+const dateString = z.preprocess(
+  (v) => {
+    if (v instanceof Date) return v.toISOString().slice(0, 10);
+    return v;
+  },
+  z.string()
+);
 
 const blog = defineCollection({
   loader: glob({ base: './content/blog', pattern: '**/*.{md,mdx}' }),
   schema: z.object({
     title: z.string(),
     description: z.string(),
-    pubDate: z.string(),
+    pubDate: dateString,
     // 内容生命周期：draft(草稿) / review(待确认) / published(公开) / private(私密)
     // 注意：公开内容区 content/blog/ 只放 published；草稿放 content/drafts/，私密放 content/private/
     status: z.enum(['draft', 'review', 'published', 'private']).default('published'),
