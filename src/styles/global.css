@@ -60,3 +60,27 @@ html {
   scrollbar-color: color-mix(in srgb, var(--c-fg) 25%, transparent) transparent;
 }
 
+
+
+/* 文章正文段落首行缩进 2 字（中文排版习惯，替代 Markdown 空格缩进） */
+#post-content p {
+  text-indent: 2em;
+}
+
+
+/* 标题使用霞鹜文楷 */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'LXGW WenKai', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* NIKKE Spine 看板娘：让 spine-player 画布填满容器（否则默认 300×150，角色会很小） */
+#nikke-host .spine-player,
+#nikke-host .spine-player-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* 关闭看板娘台词气泡 */
+#oml2d-tips {
+  display: none !important;
+}

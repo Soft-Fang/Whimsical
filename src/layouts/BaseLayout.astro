@@ -49,6 +49,7 @@ function navClass(href: string) {
     {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
    
     <link rel="icon" type="image/png" href={link('/favicon.png')} />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/style.css" />
     <title>{pageTitle}</title>
 
   <script is:inline>
@@ -78,6 +79,16 @@ function navClass(href: string) {
   </head>
 
   <body data-base={base} class="bg-bg text-fg min-h-screen flex flex-col">
+      <div id="reading-progress" transition:persist="reading-progress" style="position:fixed;left:0;top:0;bottom:0;width:5px;z-index:80;pointer-events:none;background:color-mix(in srgb,var(--c-fg) 10%,transparent)">
+    <div id="progress-fill" style="position:absolute;left:0;top:0;width:100%;height:0;background:linear-gradient(to bottom,#7C6CFF,#60A5FA,#3DA48F,#F5C542,#F06292)"></div>
+  </div>
+  <canvas id="click-particles" transition:persist="click-particles" style="position:fixed;inset:0;pointer-events:none;z-index:70"></canvas>
+  <div id="oml2d-host" transition:persist="oml2d-host"></div>
+  <div id="nikke-host" transition:persist="nikke-host" style="position:fixed;right:0;bottom:0;width:240px;height:360px;z-index:64;visibility:hidden;transform-origin:right bottom"></div>
+  <div id="mascot-toggle" transition:persist="mascot-toggle" style="position:fixed;left:14px;bottom:14px;z-index:10000;display:flex;gap:8px">
+    <button id="btn-live2d" type="button" title="看板娘" style="cursor:pointer;border:none;border-radius:50%;width:18px;height:18px;background:#F06292;box-shadow:0 2px 8px rgba(0,0,0,.3);opacity:1"></button>
+    <button id="btn-viper" type="button" title="Viper" style="cursor:pointer;border:none;border-radius:50%;width:18px;height:18px;background:#A855F7;box-shadow:0 2px 8px rgba(0,0,0,.3);opacity:0.45"></button>
+  </div>
     <!-- 全宽导航条：logo 在最左，导航+主题/壁纸在最右，中间留空 -->
     <header class="sticky top-4 z-50">
       <div class="flex items-center justify-between w-full px-20 py-4
@@ -206,16 +217,322 @@ function navClass(href: string) {
     });
   });
 </script>  
-  <!-- Live2D 看板娘：oh-my-live2d（CDN 自动装载，默认模型） -->
+      <!-- 看板娘双系统切换：Live2D / Viper(Spine) -->
   <script is:inline>
     (function () {
-      if (document.getElementById('oml2d-script')) return;
-      var s = document.createElement('script');
-      s.id = 'oml2d-script';
-      s.src = 'https://cdn.jsdelivr.net/npm/oh-my-live2d/dist/index.min.js';
-      s.async = true;
-      document.body.appendChild(s);
+      var MODE_KEY = 'mascot_mode';
+      var L2D_PATH = 'https://cdn.jsdelivr.net/gh/Eikanya/Live2d-model@master/%E7%A2%A7%E8%93%9D%E8%88%AA%E7%BA%BF%20Azue%20Lane/Azue%20Lane%28JP%29/bisimai_2/bisimai_2.model3.json';
+      var NIKKE_BASE = (document.body.dataset.base || '/') + 'nikke/c112/c112_00';
+      var L2D_BASE_SCALE = 0.0375;
+
+      function getMode() { try { return localStorage.getItem(MODE_KEY) || 'live2d'; } catch (e) { return 'live2d'; } }
+      function setMode(m) {
+        try { localStorage.setItem(MODE_KEY, m); } catch (e) {}
+        applyMode();
+        if (m === 'live2d') { ensureLive2D(); } else { ensureNikke(); }
+      }
+
+      function scaleFactor() {
+        var w = window.innerWidth || 1200;
+        var h = window.innerHeight || 800;
+        var f = Math.min(w / 1200, h / 800, 1);
+        return Math.max(0.5, f);
+      }
+
+      function applyMode() {
+        var m = getMode();
+        var l2d = document.getElementById('oml2d-host');
+        var nk = document.getElementById('nikke-host');
+        if (l2d) l2d.style.visibility = (m === 'live2d') ? 'visible' : 'hidden';
+        if (nk) nk.style.visibility = (m === 'viper') ? 'visible' : 'hidden';
+        var bl = document.getElementById('btn-live2d');
+        var bv = document.getElementById('btn-viper');
+        if (bl) bl.style.opacity = (m === 'live2d') ? '1' : '0.45';
+        if (bv) bv.style.opacity = (m === 'viper') ? '1' : '0.45';
+      }
+
+      function resizeLive2D() {
+        if (getMode() !== 'live2d') return;
+        if (!window.__oml2d) return;
+        try {
+          var s = L2D_BASE_SCALE * scaleFactor();
+          window.__oml2d.setModelScale(s);
+          var size = window.__oml2d.models.modelSize;
+          var el = window.__oml2d.stage.element;
+          if (el && size && size.width && size.height) {
+            el.style.width = size.width + 'px';
+            el.style.height = size.height + 'px';
+          }
+          if (window.__oml2d.pixiApp && window.__oml2d.pixiApp.resize) window.__oml2d.pixiApp.resize();
+        } catch (e) {}
+      }
+
+      function resizeNikke() {
+        var nk = document.getElementById('nikke-host');
+        if (nk) nk.style.transform = 'scale(' + scaleFactor() + ')';
+      }
+
+      var resizeTimer = null;
+      function onResize() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () { if (getMode() === 'viper') { resizeNikke(); } else { resizeLive2D(); } }, 120);
+      }
+
+      function ensureLive2D() {
+        if (window.__oml2d_loaded) { applyMode(); resizeLive2D(); return; }
+        window.__oml2d_loaded = true;
+        var s = document.createElement('script');
+        s.id = 'oml2d-script';
+        s.src = (document.body.dataset.base || '/') + 'live2d/index.min.js';
+        s.onload = function () {
+          if (window.OML2D && window.OML2D.loadOml2d) {
+            window.__oml2d = window.OML2D.loadOml2d({ parentElement: document.getElementById('oml2d-host'), dockedPosition: 'right', mobileDisplay: true, models: [{ path: L2D_PATH, scale: L2D_BASE_SCALE }] });
+            setTimeout(bindLive2DClick, 600);
+            setTimeout(resizeLive2D, 300);
+          }
+        };
+        s.async = true;
+        document.body.appendChild(s);
+      }
+
+      function ensureNikke() {
+        if (window.__nikke_loaded) { applyMode(); resizeNikke(); return; }
+        window.__nikke_loaded = true;
+        var s = document.createElement('script');
+        s.id = 'spine-script';
+        s.src = (document.body.dataset.base || '/') + 'spine/spine-player.js';
+        s.onload = function () { initNikke(); };
+        s.async = true;
+        document.body.appendChild(s);
+      }
+
+      function initNikke() {
+        if (window.__nikke_inited) { applyMode(); resizeNikke(); return; }
+        window.__nikke_inited = true;
+        createNikkePlayer();
+      }
+
+      function createNikkePlayer() {
+        var host = document.getElementById('nikke-host');
+        if (!host || !window.spine || !window.spine.SpinePlayer) return;
+        host.innerHTML = '';
+        var c = document.createElement('div');
+        c.id = 'nikke-container';
+        c.style.cssText = 'width:100%;height:100%;';
+        host.appendChild(c);
+        try {
+          window.__nikke_player = new window.spine.SpinePlayer('nikke-container', {
+            skelUrl: NIKKE_BASE + '.skel',
+            atlasUrl: NIKKE_BASE + '.atlas',
+            animation: 'idle',
+            skin: 'default',
+            backgroundColor: '#00000000',
+            alpha: true,
+            mipmaps: false,
+            debug: false,
+            preserveDrawingBuffer: true,
+            showControls: false,
+            viewport: { padLeft: '0%', padRight: '0%', padTop: '0%', padBottom: '0%' },
+            success: function (player) {
+              var d = player.skeleton && player.skeleton.data;
+              if (d && d.width && d.height) {
+                var baseH = 360;
+                var targetW = Math.round(baseH * (d.width / d.height));
+                var curW = host.clientWidth || 360;
+                if (Math.abs(targetW - curW) > 6 && !window.__nikke_refit_count) {
+                  window.__nikke_refit_count = 1;
+                  host.style.width = targetW + 'px';
+                  host.style.height = baseH + 'px';
+                  try { player.dispose(); } catch (e) {}
+                  createNikkePlayer();
+                  return;
+                }
+              }
+              setupNikkeInteraction(player);
+              resizeNikke();
+            }
+          });
+        } catch (e) { console.error('nikke init failed', e); }
+      }
+
+      function bindLive2DClick() {
+        if (window.__l2d_click_bound) return;
+        var o = window.__oml2d;
+        var stage = o && o.stage && o.stage.element;
+        if (!stage) return;
+        window.__l2d_click_bound = true;
+        stage.addEventListener('click', function (e) {
+          if (window.__spawnFlowers) window.__spawnFlowers(e.clientX, e.clientY, 10);
+        });
+      }
+      function setupNikkeInteraction(player) {
+        try {
+          if (window.spine.CameraController && player.canvas && player.sceneRenderer) {
+            new window.spine.CameraController(player.canvas, player.sceneRenderer.camera);
+          }
+        } catch (e) {}
+        try {
+          var cv = player.canvas;
+          if (!cv || cv.__nikke_click_bound) return;
+          cv.__nikke_click_bound = true;
+          var downX = 0, downY = 0;
+          cv.addEventListener('mousedown', function (e) { downX = e.clientX; downY = e.clientY; });
+          cv.addEventListener('mouseup', function (e) {
+            var dx = e.clientX - downX, dy = e.clientY - downY;
+            if (dx * dx + dy * dy < 49) {
+              playNikkeExpression(player);
+              if (window.__spawnFlowers) window.__spawnFlowers(e.clientX, e.clientY, 10);
+            }
+          });
+        } catch (e) {}
+      }
+
+      function playNikkeExpression(player) {
+        try {
+          var anims = player.skeleton && player.skeleton.data && player.skeleton.data.animations;
+          if (!anims || !anims.length) return;
+          var pool = [];
+          for (var i = 0; i < anims.length; i++) {
+            var n = (anims[i] && anims[i].name) || '';
+            if (!n || n === 'idle' || /tap|attack|skill|burst|dodge|move|run|walk|damage|dead/i.test(n)) continue;
+            pool.push(n);
+          }
+          if (!pool.length) {
+            for (var j = 0; j < anims.length; j++) {
+              var n2 = (anims[j] && anims[j].name) || '';
+              if (n2 && n2 !== 'idle') pool.push(n2);
+            }
+          }
+          if (!pool.length) return;
+          var pick = pool[Math.floor(Math.random() * pool.length)];
+          player.setAnimation(pick, false);
+          player.addAnimation('idle', true, 0);
+        } catch (e) {}
+      }
+      function bindButtons() {
+        var bl = document.getElementById('btn-live2d');
+        var bv = document.getElementById('btn-viper');
+        if (bl) bl.onclick = function () { setMode('live2d'); };
+        if (bv) bv.onclick = function () { setMode('viper'); };
+      }
+
+      bindButtons();
+      applyMode();
+      window.addEventListener('resize', onResize);
+      if (getMode() === 'viper') { ensureNikke(); } else { ensureLive2D(); }
     })();
   </script>
+
+  <script>
+            // ===== 阅读进度条（左侧竖条 + 渐变）=====
+    (function () {
+      var fill = document.getElementById('progress-fill');
+      if (!fill) return;
+      function update() {
+        var h = document.documentElement;
+        var max = h.scrollHeight - h.clientHeight;
+        var pct = max > 0 ? h.scrollTop / max : 0;
+        fill.style.height = (pct * 100) + '%';
+      }
+      window.addEventListener('scroll', update, { passive: true });
+      window.addEventListener('resize', update, { passive: true });
+      update();
+    })();
+// ===== 图片灯箱（点击文章内图片放大）=====
+    (function () {
+      var overlay = null;
+      function close() { if (overlay) { overlay.remove(); overlay = null; } }
+      document.addEventListener('click', function (e) {
+        var img = e.target && e.target.closest ? e.target.closest('#post-content img') : null;
+        if (!img || img.closest('a')) return;
+        close();
+        overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:40px';
+        var big = document.createElement('img');
+        big.src = img.currentSrc || img.src;
+        big.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;background:#fff';
+        overlay.appendChild(big);
+        overlay.addEventListener('click', close);
+        document.body.appendChild(overlay);
+      });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    })();
+
+    // ===== 中英文自动加空格 =====
+    (function () {
+      function addSpaces(root) {
+        if (!root) return;
+        var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+          acceptNode: function (node) {
+            var p = node.parentElement;
+            if (p && (p.closest('pre') || p.closest('code') || p.closest('script') || p.closest('style'))) return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+          }
+        });
+        var nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        nodes.forEach(function (node) {
+          var v = node.nodeValue;
+          if (!v) return;
+          var out = v
+            .replace(/([\u4e00-\u9fa5\u3040-\u30ff])([A-Za-z0-9])/g, '$1 $2')
+            .replace(/([A-Za-z0-9])([\u4e00-\u9fa5\u3040-\u30ff])/g, '$1 $2');
+          if (out !== v) node.nodeValue = out;
+        });
+      }
+      function run() { addSpaces(document.querySelector('#post-content') || document.body); }
+      document.addEventListener('astro:after-swap', run);
+      run();
+    })();
+
+                // ===== 鼠标点击：花朵散落（自托管樱花 SVG）=====
+    (function () {
+      var canvas = document.getElementById('click-particles');
+      if (!canvas) return;
+      var ctx = canvas.getContext('2d');
+      var petals = [];
+      var img = new Image();
+      img.src = (document.body.dataset.base || '/') + 'flowers/cherry-blossom.svg';
+      function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+      resize();
+      window.addEventListener('resize', resize, { passive: true });
+            function spawn(x, y, n) {
+        for (var i = 0; i < n; i++) {
+          var a = Math.random() * Math.PI * 2;
+          var sp = 1.5 + Math.random() * 3;
+          petals.push({
+            x: x, y: y,
+            vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 1.5,
+            rot: Math.random() * Math.PI * 2, vr: (Math.random() - 0.5) * 0.25,
+            life: 1, decay: 0.010 + Math.random() * 0.012,
+            size: 26 + Math.random() * 18
+          });
+        }
+      }
+      window.__spawnFlowers = spawn;
+      document.addEventListener('click', function (e) {
+        spawn(e.clientX, e.clientY, 4 + Math.floor(Math.random() * 3));
+      });
+      function draw(p) {
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.drawImage(img, -p.size / 2, -p.size / 2, p.size, p.size);
+        ctx.restore();
+      }
+      function loop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        petals = petals.filter(function (p) { return p.life > 0 && p.y < canvas.height + 40; });
+        petals.forEach(function (p) {
+          p.x += p.vx; p.y += p.vy; p.vy += 0.05; p.vx *= 0.99;
+          p.rot += p.vr; p.life -= p.decay;
+          draw(p);
+        });
+        ctx.globalAlpha = 1;
+        requestAnimationFrame(loop);
+      }
+      loop();
+    })();</script>
 </body>
 </html>
