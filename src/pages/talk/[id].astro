@@ -1,5 +1,5 @@
 ---
-// 今日说法详情页：大卡片显示全部内容，markdown 内写 ![](图片路径) 即可显示图片
+// 随笔详情页：大卡片显示全部内容，markdown 内写 ![](图片路径) 即可显示图片
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ReadFrostedGlass from '../../components/ReadFrostedGlass.astro';
@@ -23,15 +23,15 @@ const { Content } = await render(talk);
 const { update } = talk.data;
 ---
 
-<BaseLayout 
- title={update || '动态'} 
+<BaseLayout
+ title={update || '随笔'}
   ogType="article"
 >
   <div class="max-w-2xl mx-auto px-6 pt-24 pb-16">
     <ReadFrostedGlass>
       <AnimateIn delay={0}>
-        <a href={import.meta.env.BASE_URL + 'talk'} class="text-sm text-fg/40 hover:text-accent transition-colors">
-          ← 返回今日说法
+        <a href={import.meta.env.BASE_URL + 'topics/essay'} class="text-sm text-fg/40 hover:text-accent transition-colors">
+          ← 返回随笔
         </a>
         {update && (
           <time class="block mt-4 text-sm text-fg/35 font-mono">{update}</time>

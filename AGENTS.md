@@ -20,7 +20,7 @@
 
 ## 内容规范（frontmatter）
 blog 文章必填：`title`、`description`、`pubDate`（YYYY-MM-DD）。
-- `category`：随笔 / 不定期日记 / 复盘笔记（应用专题由 apps 集合承载）
+- `category`：固定标签，按文件夹锁死（blog=正文、talk=随笔、apps=应用）；专题归属由「放在哪个文件夹」决定，勿手改
 - `tags`：数组（或单个字符串，schema 会自动转数组）
 - `status`：draft / review / published / private，默认 published
   - **公开区 `content/blog/` 只放 published**；草稿放 `content/drafts/`，私密放 `content/private/`

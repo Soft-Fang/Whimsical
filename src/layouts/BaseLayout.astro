@@ -84,11 +84,13 @@ function navClass(href: string) {
   </div>
   <canvas id="click-particles" transition:persist="click-particles" style="position:fixed;inset:0;pointer-events:none;z-index:70"></canvas>
   <div id="oml2d-host" transition:persist="oml2d-host"></div>
-  <div id="nikke-host" transition:persist="nikke-host" style="position:fixed;right:0;bottom:0;width:240px;height:360px;z-index:64;visibility:hidden;transform-origin:right bottom"></div>
-  <div id="mascot-toggle" transition:persist="mascot-toggle" style="position:fixed;left:14px;bottom:14px;z-index:10000;display:flex;gap:8px">
+  <div id="nikke-host" transition:persist="nikke-host" style="position:fixed;right:0;bottom:0;width:360px;height:540px;z-index:64;visibility:hidden;transform-origin:right bottom"></div>
+    <div id="mascot-toggle" transition:persist="mascot-toggle" style="position:fixed;left:14px;bottom:14px;z-index:10000;display:flex;gap:8px;align-items:center">
     <button id="btn-live2d" type="button" title="看板娘" style="cursor:pointer;border:none;border-radius:50%;width:18px;height:18px;background:#F06292;box-shadow:0 2px 8px rgba(0,0,0,.3);opacity:1"></button>
     <button id="btn-viper" type="button" title="Viper" style="cursor:pointer;border:none;border-radius:50%;width:18px;height:18px;background:#A855F7;box-shadow:0 2px 8px rgba(0,0,0,.3);opacity:0.45"></button>
+    <button id="btn-chars" type="button" title="切换角色" style="cursor:pointer;border:none;border-radius:999px;padding:4px 10px;color:#fff;background:rgba(0,0,0,.45);box-shadow:0 2px 8px rgba(0,0,0,.3);font-size:12px">角色</button>
   </div>
+  <div id="char-panel" transition:persist="char-panel" style="position:fixed;left:14px;bottom:52px;z-index:10000;display:none;flex-direction:column;gap:4px;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);border-radius:12px;padding:6px"></div>
     <!-- 全宽导航条：logo 在最左，导航+主题/壁纸在最右，中间留空 -->
     <header class="sticky top-4 z-50">
       <div class="flex items-center justify-between w-full px-20 py-4
@@ -217,18 +219,31 @@ function navClass(href: string) {
     });
   });
 </script>  
-      <!-- 看板娘双系统切换：Live2D / Viper(Spine) -->
+        <!-- 看板娘双系统切换：Live2D / Viper(Spine) + 角色切换 -->
   <script is:inline>
     (function () {
       var MODE_KEY = 'mascot_mode';
-      var L2D_PATH = 'https://cdn.jsdelivr.net/gh/Eikanya/Live2d-model@master/%E7%A2%A7%E8%93%9D%E8%88%AA%E7%BA%BF%20Azue%20Lane/Azue%20Lane%28JP%29/bisimai_2/bisimai_2.model3.json';
-      var NIKKE_BASE = (document.body.dataset.base || '/') + 'nikke/c112/c112_00';
-      var L2D_BASE_SCALE = 0.0375;
+      var L2D_BASE_SCALE = 0.05625;
+      var NIKKE_BASE_H = 540;
+
+      var L2D_MODELS = [
+        { name: '俾斯麦', path: 'https://cdn.jsdelivr.net/gh/Eikanya/Live2d-model@master/%E7%A2%A7%E8%93%9D%E8%88%AA%E7%BA%BF%20Azue%20Lane/Azue%20Lane%28JP%29/bisimai_2/bisimai_2.model3.json' },
+        { name: '齐柏林伯爵', path: 'https://cdn.jsdelivr.net/gh/Eikanya/Live2d-model@master/%E7%A2%A7%E8%93%9D%E8%88%AA%E7%BA%BF%20Azue%20Lane/Azue%20Lane%28JP%29/qibolin_2/qibolin_2.model3.json' },
+        { name: '维内托', path: 'https://cdn.jsdelivr.net/gh/Eikanya/Live2d-model@master/%E7%A2%A7%E8%93%9D%E8%88%AA%E7%BA%BF%20Azue%20Lane/Azue%20Lane%28JP%29/weiyan_2/weiyan_2.model3.json' },
+        { name: '欧根亲王', path: 'https://cdn.jsdelivr.net/gh/Eikanya/Live2d-model@master/%E7%A2%A7%E8%93%9D%E8%88%AA%E7%BA%BF%20Azue%20Lane/Azue%20Lane%28JP%29/ougen_5/ougen_5.model3.json' },
+        { name: '雫(原创Q版)', path: 'https://cdn.jsdelivr.net/npm/live2d-widget-model-shizuku@latest/assets/shizuku.model.json' }
+      ];
+      var NIKKE_CHARS = [
+        { name: 'Viper', id: 'c112' },
+        { name: 'Rapi', id: 'c010' }
+      ];
+      var NIKKE_CUR = 'c112';
 
       function getMode() { try { return localStorage.getItem(MODE_KEY) || 'live2d'; } catch (e) { return 'live2d'; } }
       function setMode(m) {
         try { localStorage.setItem(MODE_KEY, m); } catch (e) {}
         applyMode();
+        hideCharPanel();
         if (m === 'live2d') { ensureLive2D(); } else { ensureNikke(); }
       }
 
@@ -286,7 +301,11 @@ function navClass(href: string) {
         s.src = (document.body.dataset.base || '/') + 'live2d/index.min.js';
         s.onload = function () {
           if (window.OML2D && window.OML2D.loadOml2d) {
-            window.__oml2d = window.OML2D.loadOml2d({ parentElement: document.getElementById('oml2d-host'), dockedPosition: 'right', mobileDisplay: true, models: [{ path: L2D_PATH, scale: L2D_BASE_SCALE }] });
+            var models = [];
+            for (var i = 0; i < L2D_MODELS.length; i++) {
+              models.push({ name: L2D_MODELS[i].name, path: L2D_MODELS[i].path, scale: L2D_BASE_SCALE });
+            }
+            window.__oml2d = window.OML2D.loadOml2d({ parentElement: document.getElementById('oml2d-host'), dockedPosition: 'right', mobileDisplay: true, models: models });
             setTimeout(bindLive2DClick, 600);
             setTimeout(resizeLive2D, 300);
           }
@@ -315,6 +334,7 @@ function navClass(href: string) {
       function createNikkePlayer() {
         var host = document.getElementById('nikke-host');
         if (!host || !window.spine || !window.spine.SpinePlayer) return;
+        var base = (document.body.dataset.base || '/') + 'nikke/' + NIKKE_CUR + '/' + NIKKE_CUR + '_00';
         host.innerHTML = '';
         var c = document.createElement('div');
         c.id = 'nikke-container';
@@ -322,8 +342,8 @@ function navClass(href: string) {
         host.appendChild(c);
         try {
           window.__nikke_player = new window.spine.SpinePlayer('nikke-container', {
-            skelUrl: NIKKE_BASE + '.skel',
-            atlasUrl: NIKKE_BASE + '.atlas',
+            skelUrl: base + '.skel',
+            atlasUrl: base + '.atlas',
             animation: 'idle',
             skin: 'default',
             backgroundColor: '#00000000',
@@ -336,13 +356,12 @@ function navClass(href: string) {
             success: function (player) {
               var d = player.skeleton && player.skeleton.data;
               if (d && d.width && d.height) {
-                var baseH = 360;
-                var targetW = Math.round(baseH * (d.width / d.height));
+                var targetW = Math.round(NIKKE_BASE_H * (d.width / d.height));
                 var curW = host.clientWidth || 360;
                 if (Math.abs(targetW - curW) > 6 && !window.__nikke_refit_count) {
                   window.__nikke_refit_count = 1;
                   host.style.width = targetW + 'px';
-                  host.style.height = baseH + 'px';
+                  host.style.height = NIKKE_BASE_H + 'px';
                   try { player.dispose(); } catch (e) {}
                   createNikkePlayer();
                   return;
@@ -365,6 +384,7 @@ function navClass(href: string) {
           if (window.__spawnFlowers) window.__spawnFlowers(e.clientX, e.clientY, 10);
         });
       }
+
       function setupNikkeInteraction(player) {
         try {
           if (window.spine.CameraController && player.canvas && player.sceneRenderer) {
@@ -409,11 +429,70 @@ function navClass(href: string) {
           player.addAnimation('idle', true, 0);
         } catch (e) {}
       }
+
+      function switchLive2D(index) {
+        var o = window.__oml2d;
+        if (!o || !o.loadModelByIndex) return;
+        try {
+          var p = o.loadModelByIndex(index);
+          if (p && p.then) p.then(function () { setTimeout(resizeLive2D, 200); });
+          else setTimeout(resizeLive2D, 600);
+        } catch (e) {}
+      }
+
+      function switchNikke(id) {
+        if (id === NIKKE_CUR) return;
+        NIKKE_CUR = id;
+        window.__nikke_refit_count = 0;
+        if (window.__nikke_player) { try { window.__nikke_player.dispose(); } catch (e) {} }
+        createNikkePlayer();
+      }
+
+      function renderCharPanel() {
+        var panel = document.getElementById('char-panel');
+        if (!panel) return;
+        var m = getMode();
+        var list = m === 'viper' ? NIKKE_CHARS : L2D_MODELS;
+        panel.innerHTML = '';
+        for (var i = 0; i < list.length; i++) {
+          (function (idx) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.textContent = list[idx].name;
+            b.style.cssText = 'cursor:pointer;border:none;border-radius:8px;padding:5px 12px;color:#fff;background:rgba(255,255,255,.14);font-size:12px;text-align:left;white-space:nowrap';
+            b.onclick = function () {
+              if (m === 'viper') switchNikke(NIKKE_CHARS[idx].id);
+              else switchLive2D(idx);
+              hideCharPanel();
+            };
+            panel.appendChild(b);
+          })(i);
+        }
+      }
+
+      function toggleCharPanel() {
+        var panel = document.getElementById('char-panel');
+        if (!panel) return;
+        if (panel.style.display === 'none' || panel.style.display === '') {
+          renderCharPanel();
+          panel.style.display = 'flex';
+        } else {
+          panel.style.display = 'none';
+        }
+      }
+
+      function hideCharPanel() {
+        var panel = document.getElementById('char-panel');
+        if (panel) panel.style.display = 'none';
+      }
+
       function bindButtons() {
         var bl = document.getElementById('btn-live2d');
         var bv = document.getElementById('btn-viper');
+        var bc = document.getElementById('btn-chars');
         if (bl) bl.onclick = function () { setMode('live2d'); };
         if (bv) bv.onclick = function () { setMode('viper'); };
+        if (bc) bc.onclick = function () { toggleCharPanel(); };
       }
 
       bindButtons();

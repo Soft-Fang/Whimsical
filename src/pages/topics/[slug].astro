@@ -4,11 +4,11 @@ import { getCollection } from 'astro:content';
 
 const base = import.meta.env.BASE_URL;
 
+// 专题 = 文件夹（集合）：blog 正文 / talk 随笔 / apps 应用
 export async function getStaticPaths() {
   const TOPICS = [
-    { slug: 'essay', name: '随笔', type: 'blog', category: '随笔' },
-    { slug: 'diary', name: '不定期日记', type: 'blog', category: '不定期日记' },
-    { slug: 'review', name: '复盘笔记', type: 'blog', category: '复盘笔记' },
+    { slug: 'article', name: '正文', type: 'blog' },
+    { slug: 'essay', name: '随笔', type: 'talk' },
     { slug: 'apps', name: '应用', type: 'apps' },
   ];
   return TOPICS.map((t) => ({ params: { slug: t.slug }, props: { topic: t } }));
@@ -17,14 +17,26 @@ export async function getStaticPaths() {
 const { topic } = Astro.props;
 
 const blogPosts = topic.type === 'blog'
-  ? (await getCollection('blog'))
-      .filter((p) => p.data.category === topic.category)
-      .sort((a, b) => b.data.pubDate.localeCompare(a.data.pubDate))
+  ? (await getCollection('blog')).sort((a, b) => b.data.pubDate.localeCompare(a.data.pubDate))
+  : [];
+
+const talks = topic.type === 'talk'
+  ? (await getCollection('talk')).sort((a, b) => (b.data.update ?? '').localeCompare(a.data.update ?? ''))
   : [];
 
 const apps = topic.type === 'apps'
   ? (await getCollection('apps')).sort((a, b) => Number(b.data.featured) - Number(a.data.featured))
   : [];
+
+// 从 markdown 正文提取纯文本，去掉图片/链接语法和多余空白，截取前 n 个字
+function excerpt(body: string | undefined, n = 20) {
+  const text = (body ?? '')
+    .replace(/!\[.*?\]\(.*?\)/g, ' ')
+    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.length > n ? text.slice(0, n) + '…' : text;
+}
 ---
 <BaseLayout title={topic.name} description={'专题：' + topic.name}>
   <div class="max-w-2xl mx-auto px-6 pt-24 pb-16">
@@ -32,7 +44,7 @@ const apps = topic.type === 'apps'
     <h1 class="text-3xl font-bold mb-2">{topic.name}</h1>
     <a href={base + 'topics'} class="text-sm text-fg/40 hover:text-accent transition-colors">← 返回专题</a>
 
-    {topic.type === 'blog' ? (
+    {topic.type === 'blog' && (
       <div class="mt-8 flex flex-col gap-3">
         {blogPosts.length === 0 ? (
           <p class="text-sm text-fg/40">暂无文章</p>
@@ -46,7 +58,24 @@ const apps = topic.type === 'apps'
           ))
         )}
       </div>
-    ) : (
+    )}
+
+    {topic.type === 'talk' && (
+      <div class="mt-8 flex flex-col gap-3">
+        {talks.length === 0 ? (
+          <p class="text-sm text-fg/40">暂无随笔</p>
+        ) : (
+          talks.map((t) => (
+            <a href={base + 'talk/' + t.id} class="block p-5 rounded-2xl border border-fg/8 bg-bg/60 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5">
+              <p class="text-sm text-fg/70 leading-relaxed">{excerpt(t.body)}</p>
+              {t.data.update && <time class="mt-2 inline-block text-xs text-fg/35 font-mono">{t.data.update}</time>}
+            </a>
+          ))
+        )}
+      </div>
+    )}
+
+    {topic.type === 'apps' && (
       <div class="mt-8 flex flex-col gap-3">
         {apps.length === 0 ? (
           <p class="text-sm text-fg/40">暂无应用</p>

@@ -10,9 +10,9 @@
 
 - 博客文章（`content/blog/`）
 - 归档（星空图 + 年月树）
-- 专题分类（随笔 / 不定期日记 / 复盘笔记 / 应用）
+- 专题（正文 / 随笔 / 应用）
 - 私有空间（密码解锁，内容加密）
-- 今日说法、照片相册、明暗主题、壁纸系统
+- 随笔、照片相册、明暗主题、壁纸系统
 
 ## 本地运行
 
@@ -32,7 +32,7 @@
 - `content/` —— 所有 Markdown 内容（也是 Obsidian vault）
   - `content/blog/` —— 博客文章
   - `content/apps/` —— 应用介绍
-  - `content/talk/` —— 今日说法
+  - `content/talk/` —— 随笔
   - `content/drafts/` —— 草稿
   - `content/private/` —— 私有明文（gitignore）
   - `content/templates/` —— 写作模板

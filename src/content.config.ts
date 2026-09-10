@@ -30,6 +30,7 @@ const blog = defineCollection({
     references: stringList.optional(),
     // links = 相关连接（非引用，供知识图谱 / 推荐使用）
     links: stringList.optional(),
+    // 专题标签：按文件夹自动确定（content/blog/ = 正文），模板已锁死，勿手改
     category: z.string().optional(),
     tags: stringList.optional(),
   }),
@@ -40,6 +41,8 @@ const talk = defineCollection({
   schema: z.object({
     update: z.string().optional(),
     description: z.string().optional(),
+    // 专题标签：按文件夹自动确定（content/talk/ = 随笔），模板已锁死，勿手改
+    category: z.string().optional(),
   }),
 });
 
@@ -50,6 +53,8 @@ const apps = defineCollection({
     url: z.string().optional(),
     repo: z.string().optional(),
     description: z.string(),
+    // 专题标签：按文件夹自动确定（content/apps/ = 应用），模板已锁死，勿手改
+    category: z.string().optional(),
     tags: stringList.optional(),
     featured: z.boolean().default(false),
   }),
