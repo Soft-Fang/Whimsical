@@ -21,22 +21,22 @@ const { href, title, date, image, type, tags = [] } = Astro.props;
     ) : (
       <div class="absolute inset-0" style="background:linear-gradient(135deg,#F06292,#A855F7,#22D3EE)"></div>
     )}
-    <span class="pointer-events-none absolute inset-0" style="background:linear-gradient(180deg,rgba(0,0,0,.12) 18%,rgba(0,0,0,.86))"></span>
+    <span class="pointer-events-none absolute inset-0" style="background:linear-gradient(180deg,rgba(0,0,0,.12) 18%,rgba(0,0,0,.88))"></span>
     <span class="pointer-events-none absolute left-0 top-0 h-full w-[4px]" style="background:linear-gradient(180deg,#F06292,#A855F7,#22D3EE)"></span>
     <div class="absolute inset-x-0 bottom-0 p-6 md:p-8">
       <div class="mb-2.5 flex flex-wrap items-center gap-2.5">
-        <span class="rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white shadow" style="background:linear-gradient(135deg,#F06292,#A855F7)">LATEST · 最新</span>
-        {type && <span class="rounded-full bg-black/45 px-2.5 py-0.5 text-[11px] text-white backdrop-blur">{type}</span>}
-        {date && <span class="font-mono text-[11px] text-white/70">{date}</span>}
+        <span class="rounded-full px-2.5 py-0.5 text-[11px] font-bold shadow" style="background:linear-gradient(135deg,#F06292,#A855F7);color:#ffffff">LATEST · 最新</span>
+        {type && <span class="rounded-full px-2.5 py-0.5 text-[11px] backdrop-blur" style="background:rgba(0,0,0,.5);color:#ffffff">{type}</span>}
+        {date && <span class="font-mono text-[11px]" style="color:rgba(255,255,255,.75)">{date}</span>}
       </div>
-      <h2 class="max-w-2xl text-xl font-bold leading-snug text-white md:text-2xl" style="text-shadow:0 2px 12px rgba(0,0,0,.65)">{title}</h2>
+      <h2 class="max-w-2xl text-xl font-bold leading-snug md:text-2xl" style="color:#ffffff;text-shadow:0 2px 14px rgba(0,0,0,.75)">{title}</h2>
     </div>
   </div>
 </a>
 
 <style>
   .anime-parallax-hero {
-    transition: transform 0.4s ease-out;
+    transition: transform .18s ease-out;
   }
   @media (prefers-reduced-motion: reduce) {
     .anime-parallax-hero { transition: none; }
