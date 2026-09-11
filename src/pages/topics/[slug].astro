@@ -1,6 +1,8 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import PostCard from '../../components/PostCard.astro';
 import { getCollection } from 'astro:content';
+import { getImage } from 'astro:assets';
 
 const base = import.meta.env.BASE_URL;
 
@@ -28,73 +30,99 @@ const apps = topic.type === 'apps'
   ? (await getCollection('apps')).sort((a, b) => Number(b.data.featured) - Number(a.data.featured))
   : [];
 
-// 从 markdown 正文提取纯文本，去掉图片/链接语法和多余空白，截取前 n 个字
-function excerpt(body: string | undefined, n = 20) {
+// 二次元插画缩略图池（复用仓库已有素材）
+const imgModules = import.meta.glob('/src/assets/**/*.{jpg,jpeg,png,webp}', { eager: true });
+const imgList = [];
+for (const mod of Object.values(imgModules)) {
+  if (mod && mod.default) imgList.push(mod.default);
+}
+async function thumb(i: number) {
+  if (!imgList.length) return null;
+  try {
+    const opt = await getImage({ src: imgList[i % imgList.length], width: 320, format: 'webp' });
+    return opt.src;
+  } catch (e) { return null; }
+}
+
+// 精简文本：只留一句 / 几个字
+function brief(s: string | undefined, n = 18) {
+  const t = (s ?? '').replace(/\s+/g, ' ').trim();
+  return t.length > n ? t.slice(0, n) + '…' : t;
+}
+
+function fromBody(body: string | undefined, n = 18) {
   const text = (body ?? '')
     .replace(/!\[.*?\]\(.*?\)/g, ' ')
     .replace(/\[(.*?)\]\(.*?\)/g, '$1')
+    .replace(/[#>*`_~-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-  return text.length > n ? text.slice(0, n) + '…' : text;
+  return brief(text, n);
 }
+
+const count = topic.type === 'blog' ? blogPosts.length : topic.type === 'talk' ? talks.length : apps.length;
 ---
 <BaseLayout title={topic.name} description={'专题：' + topic.name}>
   <div class="max-w-2xl mx-auto px-6 pt-24 pb-16">
     <p class="text-xs tracking-[0.3em] uppercase text-fg/30 mb-3">TOPIC / 专题</p>
-    <h1 class="text-3xl font-bold mb-2">{topic.name}</h1>
+    <div class="mb-2 flex items-end gap-3">
+      <h1 class="text-3xl font-bold">{topic.name}</h1>
+      <span class="mb-1 font-mono text-xs text-fg/35">{String(count).padStart(2, '0')} 篇</span>
+    </div>
+    <span class="mb-4 block h-[3px] w-20 rounded-full" style="background:linear-gradient(90deg,#F06292,#A855F7,#22D3EE)"></span>
     <a href={base + 'topics'} class="text-sm text-fg/40 hover:text-accent transition-colors">← 返回专题</a>
 
     {topic.type === 'blog' && (
-      <div class="mt-8 flex flex-col gap-3">
+      <div class="mt-8 flex flex-col gap-3.5">
         {blogPosts.length === 0 ? (
           <p class="text-sm text-fg/40">暂无文章</p>
         ) : (
-          blogPosts.map((p) => (
-            <a href={base + 'blog/' + p.id} class="block p-5 rounded-2xl border border-fg/8 bg-bg/60 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5">
-              <h2 class="text-base font-bold text-fg">{p.data.title}</h2>
-              <p class="mt-1 text-sm text-fg/50 leading-relaxed">{p.data.description}</p>
-              <time datetime={p.data.pubDate} class="mt-2 inline-block text-xs text-fg/35 font-mono">{p.data.pubDate}</time>
-            </a>
-          ))
+          await Promise.all(blogPosts.map(async (p, i) => (
+            <PostCard
+              href={base + 'blog/' + p.id}
+              title={p.data.title}
+              date={p.data.pubDate}
+              tags={p.data.tags ?? []}
+              index={i}
+              image={await thumb(i)}
+            />
+          )))
         )}
       </div>
     )}
 
     {topic.type === 'talk' && (
-      <div class="mt-8 flex flex-col gap-3">
+      <div class="mt-8 flex flex-col gap-3.5">
         {talks.length === 0 ? (
           <p class="text-sm text-fg/40">暂无随笔</p>
         ) : (
-          talks.map((t) => (
-            <a href={base + 'talk/' + t.id} class="block p-5 rounded-2xl border border-fg/8 bg-bg/60 backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5">
-              <p class="text-sm text-fg/70 leading-relaxed">{excerpt(t.body)}</p>
-              {t.data.update && <time class="mt-2 inline-block text-xs text-fg/35 font-mono">{t.data.update}</time>}
-            </a>
-          ))
+          await Promise.all(talks.map(async (t, i) => (
+            <PostCard
+              href={base + 'talk/' + t.id}
+              title={t.data.title ?? t.id}
+              date={t.data.update}
+              index={i}
+              image={await thumb(i)}
+            />
+          )))
         )}
       </div>
     )}
 
     {topic.type === 'apps' && (
-      <div class="mt-8 flex flex-col gap-3">
+      <div class="mt-8 flex flex-col gap-3.5">
         {apps.length === 0 ? (
           <p class="text-sm text-fg/40">暂无应用</p>
         ) : (
-          apps.map((a) => (
-            <div class="p-5 rounded-2xl border border-fg/8 bg-bg/60 backdrop-blur-xl">
-              <h2 class="text-base font-bold text-fg">{a.data.name}</h2>
-              <p class="mt-1 text-sm text-fg/50 leading-relaxed">{a.data.description}</p>
-              {a.data.tags && a.data.tags.length > 0 && (
-                <div class="mt-2 flex flex-wrap gap-2">
-                  {a.data.tags.map((tag) => <span class="text-xs text-accent bg-accent/10 px-2.5 py-1 rounded-full">#{tag}</span>)}
-                </div>
-              )}
-              <div class="mt-3 flex gap-4">
-                {a.data.url && <a href={a.data.url} target="_blank" rel="noopener" class="text-sm text-accent hover:underline">访问应用 →</a>}
-                {a.data.repo && <a href={a.data.repo} target="_blank" rel="noopener" class="text-sm text-fg/50 hover:text-accent">源码 ↗</a>}
-              </div>
-            </div>
-          ))
+          await Promise.all(apps.map(async (a, i) => (
+            <PostCard
+              href={a.data.url ?? a.data.repo ?? '#'}
+              title={a.data.name}
+              tags={a.data.tags ?? []}
+              index={i}
+              image={await thumb(i)}
+            />
+          )))
         )}
       </div>
     )}

@@ -1,0 +1,44 @@
+---
+interface Props {
+  href: string;
+  title: string;
+  date?: string;
+  image?: string | null;
+  type?: string;
+  tags?: string[];
+}
+const { href, title, date, image, type, tags = [] } = Astro.props;
+---
+<a
+  href={href}
+  class="anime-hero group relative block overflow-hidden rounded-3xl ring-1 ring-fg/10 bg-bg/50 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_24px_64px_-18px_rgba(168,85,247,0.7)]"
+  data-anime-card
+  data-tags={tags.join('|')}
+>
+  <div class="relative aspect-[21/9] w-full overflow-hidden">
+    {image ? (
+      <img src={image} alt={title} class="anime-parallax-hero absolute inset-0 h-full w-full object-cover" style="transform:scale(1.16)" />
+    ) : (
+      <div class="absolute inset-0" style="background:linear-gradient(135deg,#F06292,#A855F7,#22D3EE)"></div>
+    )}
+    <span class="pointer-events-none absolute inset-0" style="background:linear-gradient(180deg,rgba(0,0,0,.12) 18%,rgba(0,0,0,.86))"></span>
+    <span class="pointer-events-none absolute left-0 top-0 h-full w-[4px]" style="background:linear-gradient(180deg,#F06292,#A855F7,#22D3EE)"></span>
+    <div class="absolute inset-x-0 bottom-0 p-6 md:p-8">
+      <div class="mb-2.5 flex flex-wrap items-center gap-2.5">
+        <span class="rounded-full px-2.5 py-0.5 text-[11px] font-bold text-white shadow" style="background:linear-gradient(135deg,#F06292,#A855F7)">LATEST · 最新</span>
+        {type && <span class="rounded-full bg-black/45 px-2.5 py-0.5 text-[11px] text-white backdrop-blur">{type}</span>}
+        {date && <span class="font-mono text-[11px] text-white/70">{date}</span>}
+      </div>
+      <h2 class="max-w-2xl text-xl font-bold leading-snug text-white md:text-2xl" style="text-shadow:0 2px 12px rgba(0,0,0,.65)">{title}</h2>
+    </div>
+  </div>
+</a>
+
+<style>
+  .anime-parallax-hero {
+    transition: transform 0.4s ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .anime-parallax-hero { transition: none; }
+  }
+</style>

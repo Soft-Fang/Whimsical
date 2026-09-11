@@ -1,0 +1,63 @@
+---
+interface Props {
+  href: string;
+  title: string;
+  date?: string;
+  image?: string | null;
+  index?: number;
+  type?: string;
+  tags?: string[];
+}
+const { href, title, date, image, index = 0, type, tags = [] } = Astro.props;
+const palettes = [
+  ['#F06292', '#A855F7'],
+  ['#A855F7', '#22D3EE'],
+  ['#22D3EE', '#34D399'],
+  ['#FBBF24', '#F06292'],
+  ['#60A5FA', '#A855F7'],
+  ['#F472B6', '#FB923C'],
+];
+const pal = palettes[index % palettes.length];
+const grad = `linear-gradient(135deg, ${pal[0]}, ${pal[1]})`;
+const delay = index * 60;
+---
+<div class="anime-cover-anim" style={`animation-delay:${delay}ms`} data-anime-card data-tags={tags.join('|')}>
+  <a
+    href={href}
+    class="group relative block overflow-hidden rounded-2xl ring-1 ring-fg/10 bg-bg/50 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5"
+  >
+    <div class="relative aspect-[16/10] w-full overflow-hidden">
+      {image ? (
+        <img src={image} alt={title} loading="lazy" class="anime-parallax absolute inset-0 h-full w-full object-cover" style="transform:scale(1.16)" />
+      ) : (
+        <div class="absolute inset-0" style={`background:${grad}`}></div>
+      )}
+      <span class="pointer-events-none absolute inset-0" style="background:linear-gradient(180deg,rgba(0,0,0,0) 30%,rgba(0,0,0,.82))"></span>
+      <span class="pointer-events-none absolute left-0 top-0 h-full w-[3px]" style={`background:${grad}`}></span>
+      <span class="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={`box-shadow:inset 0 0 44px ${pal[1]}66`}></span>
+
+      {type && (
+        <span class="absolute left-2.5 top-2.5 rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow" style={`background:${grad}`}>{type}</span>
+      )}
+      {date && <span class="absolute right-2.5 top-2.5 rounded-full bg-black/45 px-2 py-0.5 font-mono text-[10px] text-white backdrop-blur">{date}</span>}
+
+      <h2 class="absolute inset-x-0 bottom-0 p-4 pr-10 text-[15px] font-bold leading-snug text-white" style="text-shadow:0 1px 8px rgba(0,0,0,.6)">{title}</h2>
+      <span class="absolute bottom-4 right-4 text-lg text-white/60 transition-all duration-300 group-hover:translate-x-1 group-hover:text-white">→</span>
+    </div>
+  </a>
+</div>
+
+<style>
+  .anime-cover-anim {
+    animation: animeCoverIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes animeCoverIn {
+    from { opacity: 0; transform: translateY(18px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .anime-parallax { transition: transform .18s ease-out; }
+  @media (prefers-reduced-motion: reduce) {
+    .anime-cover-anim { animation: none; }
+    .anime-parallax { transition: none; }
+  }
+</style>

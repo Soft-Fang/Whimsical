@@ -1,0 +1,63 @@
+---
+interface Props {
+  href: string;
+  title?: string;
+  description?: string;
+  date?: string;
+  tags?: string[];
+  index?: number;
+  image?: string | null;
+}
+const { href, title, description, date, tags = [], index, image } = Astro.props;
+const num = typeof index === 'number' ? String(index + 1).padStart(2, '0') : null;
+const delay = (typeof index === 'number' ? index : 0) * 70;
+---
+<div class="anime-post-anim" style={`animation-delay:${delay}ms`}>
+  <a
+    href={href}
+    class="anime-post group relative flex items-stretch overflow-hidden rounded-2xl ring-1 ring-fg/10 bg-bg/55 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_36px_-10px_rgba(168,85,247,0.5)]"
+  >
+    <span class="pointer-events-none absolute left-0 top-0 z-30 h-full w-[3px]" style="background:linear-gradient(180deg,#F06292,#A855F7,#22D3EE);opacity:.75"></span>
+    <span class="pointer-events-none absolute inset-0 z-20 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style="background:radial-gradient(130% 90% at 100% 0%,rgba(240,98,146,.16),transparent 55%),radial-gradient(130% 90% at 0% 100%,rgba(34,211,238,.16),transparent 55%)"></span>
+
+    {image && (
+      <div class="relative aspect-square w-[104px] shrink-0 overflow-hidden sm:w-[124px]">
+        <img src={image} alt={title ?? ''} loading="lazy" class="absolute inset-0 h-full w-full object-cover transition-transform duration-[700ms] ease-out group-hover:scale-[1.09]" />
+        <span class="pointer-events-none absolute inset-0" style="background:linear-gradient(90deg,transparent 55%,rgba(0,0,0,.28))"></span>
+        {num && <span class="absolute left-1.5 top-1.5 rounded-md px-1.5 py-0.5 font-mono text-[11px] font-bold text-white" style="background:linear-gradient(135deg,#F06292,#A855F7)">{num}</span>}
+      </div>
+    )}
+
+    <div class="relative z-30 flex min-w-0 flex-1 items-center px-4 py-3.5">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-baseline gap-2">
+          {!image && num && (
+            <span class="shrink-0 font-black text-lg tabular-nums" style="background:linear-gradient(135deg,#F06292,#A855F7);-webkit-background-clip:text;background-clip:text;color:transparent">{num}</span>
+          )}
+          {title && <h2 class="min-w-0 truncate text-[15px] font-bold leading-snug text-fg transition-colors duration-200 group-hover:text-[#A855F7]">{title}</h2>}
+        </div>
+        {description && <p class={`truncate text-[13px] leading-relaxed text-fg/55 ${title ? 'mt-1' : ''}`}>{description}</p>}
+        <div class="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          {date && <time datetime={date} class="font-mono text-[11px] text-fg/35">{date}</time>}
+          {tags.slice(0, 2).map((t) => (
+            <span class="rounded-full bg-fg/5 px-2 py-0.5 text-[10px] text-fg/50 ring-1 ring-fg/5">#{t}</span>
+          ))}
+        </div>
+      </div>
+      <span class="shrink-0 self-center pl-2 text-base text-fg/20 transition-all duration-300 group-hover:translate-x-1 group-hover:text-[#A855F7]">→</span>
+    </div>
+  </a>
+</div>
+
+<style>
+  .anime-post-anim {
+    animation: animePostIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes animePostIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .anime-post-anim { animation: none; }
+  }
+</style>

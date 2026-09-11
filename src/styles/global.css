@@ -84,3 +84,8 @@ h1, h2, h3, h4, h5, h6 {
 #oml2d-tips {
   display: none !important;
 }
+
+/* 隐藏看板娘的 4 个菜单按钮（休息/切换衣服/切换模型/关于） */
+#oml2d-menus {
+  display: none !important;
+}

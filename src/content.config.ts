@@ -39,6 +39,7 @@ const blog = defineCollection({
 const talk = defineCollection({
   loader: glob({ base: './content/talk', pattern: '**/*.{md,mdx}' }),
   schema: z.object({
+    title: z.string().optional(),
     update: z.string().optional(),
     description: z.string().optional(),
     // 专题标签：按文件夹自动确定（content/talk/ = 随笔），模板已锁死，勿手改

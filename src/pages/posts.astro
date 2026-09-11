@@ -1,0 +1,194 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import PostHero from '../components/PostHero.astro';
+import PostCover from '../components/PostCover.astro';
+import { getCollection } from 'astro:content';
+import { getImage } from 'astro:assets';
+
+const base = import.meta.env.BASE_URL;
+
+// 二次元插画封面池（复用仓库已有素材）
+const imgModules = import.meta.glob('/src/assets/**/*.{jpg,jpeg,png,webp}', { eager: true });
+const imgList = [];
+for (const mod of Object.values(imgModules)) {
+  if (mod && mod.default) imgList.push(mod.default);
+}
+async function cover(i: number, w = 720) {
+  if (!imgList.length) return null;
+  try {
+    const opt = await getImage({ src: imgList[i % imgList.length], width: w, format: 'webp' });
+    return opt.src;
+  } catch (e) { return null; }
+}
+
+type Item = { href: string; title: string; date: string; type: string; tags: string[] };
+
+// 合并 正文(blog) + 随笔(talk)，按时间倒序
+const blogPosts: Item[] = (await getCollection('blog')).map((p) => ({
+  href: base + 'blog/' + p.id,
+  title: p.data.title,
+  date: p.data.pubDate,
+  type: '正文',
+  tags: p.data.tags ?? [],
+}));
+const talks: Item[] = (await getCollection('talk')).map((t) => ({
+  href: base + 'talk/' + t.id,
+  title: t.data.title ?? t.id,
+  date: t.data.update ?? '',
+  type: '随笔',
+  tags: [],
+}));
+const all: Item[] = [...blogPosts, ...talks].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+
+// 标签池
+const tagSet = new Set<string>();
+all.forEach((it) => it.tags.forEach((t) => tagSet.add(t)));
+const allTags = [...tagSet].sort();
+
+// 头条（>=3 篇时启用，避免只剩一篇时版面太空）
+const useHero = all.length >= 1;
+const featured = useHero ? { ...all[0], image: await cover(0, 1200) } : null;
+const rest = useHero ? all.slice(1) : all;
+
+// 按年份分组
+let idx = useHero ? 1 : 0;
+const groups: { year: string; items: { it: Item; index: number; image: string | null }[] }[] = [];
+let cur: { year: string; items: any[] } | null = null;
+for (const it of rest) {
+  const y = (it.date || '').slice(0, 4) || '未知';
+  if (!cur || cur.year !== y) { cur = { year: y, items: [] }; groups.push(cur); }
+  const i = idx++;
+  cur.items.push({ it, index: i, image: await cover(i) });
+}
+const showSpine = all.length >= 4;
+---
+<BaseLayout title="文章" description="按时间顺序浏览全部文章">
+  <div class="max-w-5xl mx-auto px-6 pt-24 pb-16">
+    <p class="text-xs tracking-[0.3em] uppercase text-fg/30 mb-3">ARTICLES / 文章</p>
+    <div class="mb-2 flex items-end gap-3">
+      <h1 class="text-3xl font-bold">全部文章</h1>
+      <span class="mb-1 font-mono text-xs text-fg/35">{String(all.length).padStart(2, '0')} 篇</span>
+    </div>
+    <span class="mb-8 block h-[3px] w-24 rounded-full" style="background:linear-gradient(90deg,#F06292,#A855F7,#22D3EE)"></span>
+
+    {allTags.length > 0 && (
+      <div id="tag-filter" class="mb-8 flex flex-wrap gap-2">
+        <button type="button" class="anime-chip is-active" data-filter="">全部</button>
+        {allTags.map((t) => <button type="button" class="anime-chip" data-filter={t}>#{t}</button>)}
+      </div>
+    )}
+
+    {featured && (
+      <div class="mb-10">
+        <PostHero href={featured.href} title={featured.title} date={featured.date} image={featured.image} type={featured.type} tags={featured.tags} />
+      </div>
+    )}
+
+    {all.length === 0 ? (
+      <p class="text-sm text-fg/40">暂无文章</p>
+    ) : (
+      <div class={showSpine ? 'relative' : ''}>
+        {showSpine && <span class="anime-spine" aria-hidden="true"></span>}
+        {groups.map((g) => (
+          <section class={`relative ${showSpine ? 'pl-8' : ''} mb-10`} data-group>
+            {showSpine && <span class="anime-dot" aria-hidden="true"></span>}
+            <div class="mb-4 flex items-center gap-3">
+              <span class="font-mono text-2xl font-black text-fg/25">{g.year}</span>
+              <span class="h-px flex-1" style="background:linear-gradient(90deg,rgba(168,85,247,.45),transparent)"></span>
+            </div>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {g.items.map((row) => (
+                <PostCover
+                  href={row.it.href}
+                  title={row.it.title}
+                  date={row.it.date}
+                  image={row.image}
+                  index={row.index}
+                  type={row.it.type}
+                  tags={row.it.tags}
+                />
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    )}
+  </div>
+</BaseLayout>
+
+<style is:global>
+  .anime-chip {
+    cursor: pointer;
+    border: none;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: var(--c-fg);
+    background: color-mix(in srgb, var(--c-fg) 7%, transparent);
+    transition: all .2s ease;
+  }
+  .anime-chip:hover { background: color-mix(in srgb, var(--c-fg) 13%, transparent); }
+  .anime-chip.is-active {
+    color: #fff;
+    background: linear-gradient(135deg, #F06292, #A855F7);
+    box-shadow: 0 4px 14px -4px rgba(168,85,247,.7);
+  }
+  .anime-spine {
+    position: absolute; left: 10px; top: 8px; bottom: 8px; width: 3px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #F06292, #A855F7, #22D3EE);
+    opacity: .5;
+  }
+  .anime-dot {
+    position: absolute; left: 3px; top: 8px; width: 17px; height: 17px;
+    border-radius: 50%;
+    background: var(--c-bg);
+    box-shadow: 0 0 0 3px rgba(168,85,247,.6), 0 0 16px rgba(168,85,247,.65);
+  }
+</style>
+
+<script>
+  (function () {
+    // 标签筛选
+    var bar = document.getElementById('tag-filter');
+    var cards = Array.prototype.slice.call(document.querySelectorAll('[data-anime-card]'));
+    var groups = Array.prototype.slice.call(document.querySelectorAll('[data-group]'));
+    function applyFilter(filter) {
+      cards.forEach(function (card) {
+        var tags = (card.getAttribute('data-tags') || '').split('|').filter(Boolean);
+        var show = !filter || tags.indexOf(filter) >= 0;
+        card.style.display = show ? '' : 'none';
+      });
+      groups.forEach(function (g) {
+        var any = Array.prototype.some.call(g.querySelectorAll('[data-anime-card]'), function (c) {
+          return c.style.display !== 'none';
+        });
+        g.style.display = any ? '' : 'none';
+      });
+    }
+    if (bar) {
+      bar.addEventListener('click', function (e) {
+        var btn = e.target && e.target.closest ? e.target.closest('[data-filter]') : null;
+        if (!btn) return;
+        Array.prototype.forEach.call(bar.querySelectorAll('[data-filter]'), function (b) { b.classList.remove('is-active'); });
+        btn.classList.add('is-active');
+        applyFilter(btn.getAttribute('data-filter'));
+      });
+    }
+
+    // 鼠标视差
+    document.querySelectorAll('.anime-parallax, .anime-parallax-hero').forEach(function (img) {
+      var card = img.closest('[data-anime-card]') || img.parentElement;
+      if (!card) return;
+      var baseScale = 1.16;
+      card.addEventListener('mousemove', function (e) {
+        var r = card.getBoundingClientRect();
+        var maxShift = Math.min(14, r.width * 0.055);
+        var dx = ((e.clientX - r.left) / r.width - 0.5) * 2;
+        var dy = ((e.clientY - r.top) / r.height - 0.5) * 2;
+        img.style.transform = 'translate(' + (dx * maxShift).toFixed(2) + 'px,' + (dy * maxShift).toFixed(2) + 'px) scale(' + baseScale + ')';
+      });
+      card.addEventListener('mouseleave', function () { img.style.transform = 'scale(' + baseScale + ')'; });
+    });
+  })();
+</script>
