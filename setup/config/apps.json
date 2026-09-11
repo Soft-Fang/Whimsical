@@ -1,0 +1,13 @@
+{
+  "_comment": "一键脚本需要安装的软件。check 命令存在的就跳过，不会重复安装。",
+  "windows": [
+    { "id": "Git.Git",           "name": "Git",         "check": "git --version",  "required": true },
+    { "id": "OpenJS.NodeJS.LTS", "name": "Node.js LTS", "check": "node --version", "required": true },
+    { "id": "Obsidian.Obsidian", "name": "Obsidian",    "check": null,             "required": false }
+  ],
+  "macos": [
+    { "id": "git",      "name": "Git",         "check": "git --version",  "required": true  },
+    { "id": "node",     "name": "Node.js LTS", "check": "node --version", "required": true  },
+    { "id": "obsidian", "name": "Obsidian",    "check": null,             "required": false, "cask": true }
+  ]
+}

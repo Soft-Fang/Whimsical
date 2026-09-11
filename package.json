@@ -30,7 +30,10 @@
     "sync": "astro sync",
     "astro": "astro",
     "encrypt": "node scripts/encrypt.mjs",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "setup": "node setup/lib/bootstrap.mjs",
+    "setup:export": "node setup/lib/export.mjs",
+    "setup:docs": "node setup/lib/render-docs.mjs"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.19",

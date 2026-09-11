@@ -1,0 +1,26 @@
+{
+  "_comment": "本文件描述『在哪台电脑上配置成什么样』。改完提交，其他电脑拉取后自动生效。",
+  "git": {
+    "repoUrl": "git@github.com:Soft-Fang/Whimsical.git",
+    "defaultBranch": "main",
+    "userName": "soft-fang",
+    "userEmail": "525962701@qq.com"
+  },
+  "obsidian": {
+    "vaultMode": "repo",
+    "vaultPath": "auto",
+    "pluginsManifest": "setup/config/obsidian-plugins.json",
+    "offlineAssetsDir": "setup/obsidian/plugins",
+    "installDataJson": false
+  },
+  "blog": {
+    "postsDir": "content/blog",
+    "appsDir": "content/apps",
+    "privateNotesDir": "content/private",
+    "devPort": 4321
+  },
+  "hooks": {
+    "onSetup": [],
+    "onBeforeCommit": []
+  }
+}

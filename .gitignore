@@ -46,3 +46,10 @@ Excalidraw/
 
 # Obsidian 仪表盘（仅本地）
 content/仪表盘.md
+
+
+# >>> whimsical-setup >>>
+# .obsidian/ 已在上面整体忽略，这里只补插件索引缓存
+# 插件索引缓存（会自动重新生成）
+setup/.cache/
+# <<< whimsical-setup <<<

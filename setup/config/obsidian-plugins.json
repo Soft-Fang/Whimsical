@@ -1,0 +1,97 @@
+{
+  "_comment": "Obsidian 插件清单。由 `npm run setup:export` 自动生成，请提交到仓库；其他电脑用 `npm run setup` 照此还原。version 为 null 表示装最新版。",
+  "generatedAt": "2026-09-11T09:14:23.246Z",
+  "generatedFrom": "D:\\wangtianyu\\ForMyself\\Whimsical",
+  "count": 12,
+  "plugins": [
+    {
+      "id": "dataview",
+      "name": "Dataview",
+      "repo": "blacksmithgu/obsidian-dataview",
+      "version": "0.5.68",
+      "enabled": false
+    },
+    {
+      "id": "obsidian-excalidraw-plugin",
+      "name": "Excalidraw",
+      "repo": "zsviczian/obsidian-excalidraw-plugin",
+      "version": "2.27.3",
+      "enabled": true,
+      "installData": false
+    },
+    {
+      "id": "obsidian-git",
+      "name": "Git",
+      "repo": "vinzent03/obsidian-git",
+      "version": "2.39.0",
+      "enabled": true
+    },
+    {
+      "id": "obsidian-linter",
+      "name": "Linter",
+      "repo": "platers/obsidian-linter",
+      "version": "1.32.0",
+      "enabled": true,
+      "installData": false
+    },
+    {
+      "id": "obsidian-minimal-settings",
+      "name": "Minimal Theme Settings",
+      "repo": "kepano/obsidian-minimal-settings",
+      "version": "9.0.0",
+      "enabled": true,
+      "installData": false
+    },
+    {
+      "id": "obsidian-style-settings",
+      "name": "Style Settings",
+      "repo": "obsidian-community/obsidian-style-settings",
+      "version": "1.0.9",
+      "enabled": true
+    },
+    {
+      "id": "periodic-notes",
+      "name": "Periodic Notes",
+      "repo": "liamcain/obsidian-periodic-notes",
+      "version": "0.0.17",
+      "enabled": true
+    },
+    {
+      "id": "quickadd",
+      "name": "QuickAdd",
+      "repo": "chhoumann/quickadd",
+      "version": "2.24.2",
+      "enabled": false,
+      "installData": false
+    },
+    {
+      "id": "realclaudian",
+      "name": "Claudian",
+      "repo": "yishentu/claudian",
+      "version": "2.2.6",
+      "enabled": true
+    },
+    {
+      "id": "tag-wrangler",
+      "name": "Tag Wrangler",
+      "repo": "pjeby/tag-wrangler",
+      "version": "0.6.5",
+      "enabled": true
+    },
+    {
+      "id": "templater-obsidian",
+      "name": "Templater",
+      "repo": "silentvoid13/Templater",
+      "version": "2.25.0",
+      "enabled": true,
+      "installData": false
+    },
+    {
+      "id": "various-complements",
+      "name": "Various Complements",
+      "repo": "tadashi-aikawa/obsidian-various-complements-plugin",
+      "version": "11.4.2",
+      "enabled": true
+    }
+  ]
+}

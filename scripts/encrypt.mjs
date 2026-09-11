@@ -31,6 +31,19 @@ function loadPassword() {
   return null;
 }
 
+/**
+ * 递归收集目录下所有 .md 文件，返回相对 notesDir 的路径。
+ * 之前只读顶层，笔记按主题分到子目录里就一篇都扫不到。
+ */
+function collectMarkdown(dir, base = dir, out = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) collectMarkdown(full, base, out);
+    else if (entry.isFile() && entry.name.endsWith('.md')) out.push(full.slice(base.length + 1));
+  }
+  return out;
+}
+
 function parseFrontmatter(md) {
   if (!md.startsWith('---')) return { attrs: {}, body: md };
   const end = md.indexOf('\n---', 3);
@@ -87,7 +100,7 @@ async function main() {
     process.exit(1);
   }
 
-  const files = readdirSync(notesDir).filter(function (f) { return f.endsWith('.md'); }).sort();
+  const files = collectMarkdown(notesDir).sort();
   if (files.length === 0) {
     console.error('content/private 目录里没有 .md 文件。');
     process.exit(1);
@@ -102,7 +115,7 @@ async function main() {
     const parsed = parseFrontmatter(raw);
     const html = marked.parse(parsed.body);
     const postObj = {
-      title: parsed.attrs.title || f.replace(/\.md$/, ''),
+      title: parsed.attrs.title || f.replace(/\.md$/, '').split(/[\\/]/).pop(),
       date: parsed.attrs.date || '',
       description: parsed.attrs.description || '',
       html: html
