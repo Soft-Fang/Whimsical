@@ -39,6 +39,9 @@ jobs:
       - name: Content check
         run: npm run check
 
+      - name: SEO check
+        run: npm run seo
+
       - name: Build
         run: npm run build
 

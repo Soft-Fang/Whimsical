@@ -27,6 +27,8 @@
     "encrypt": "node scripts/encrypt.mjs",
     "check": "node scripts/check.mjs",
     "check:json": "node scripts/check.mjs --json",
+    "seo": "node scripts/seo.mjs",
+    "seo:json": "node scripts/seo.mjs --json",
     "compress": "node scripts/compress-images.mjs",
     "backup": "powershell -ExecutionPolicy Bypass -File scripts/backup.ps1",
     "setup": "node setup/lib/bootstrap.mjs",
