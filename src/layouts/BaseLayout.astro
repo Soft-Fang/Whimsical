@@ -6,6 +6,7 @@ import { site } from '../site.config';
 import ThemeToggle from '../components/ThemeToggle.astro';
 import WallpaperPicker from '../components/WallpaperPicker.astro';
 import { getImage } from 'astro:assets';
+import mascotConfig from '../data/mascots.json';
 import wallpaperConfig from '../data/wallpapers.json';
 
 // B1：找出「默认」壁纸，提前 preload（首屏 LCP 提速）
@@ -254,24 +255,10 @@ function navClass(href: string) {
   });
 </script>  
         <!-- 看板娘双系统切换：Live2D / Viper(Spine) + 角色切换 -->
-  <script is:inline>
+  <script is:inline define:vars={{ L2D_BASE_SCALE: mascotConfig.live2d_base_scale, NIKKE_BASE_H: mascotConfig.nikke_base_height, L2D_MODELS: mascotConfig.live2d, NIKKE_CHARS: mascotConfig.nikke, DEFAULT_NIKKE: mascotConfig.default_nikke, DEFAULT_MODE: mascotConfig.default_mode }}>
     (function () {
       var MODE_KEY = 'mascot_mode';
-      var L2D_BASE_SCALE = 0.05625;
-      var NIKKE_BASE_H = 540;
-
-                  var L2D_MODELS = [
-        { name: '大凤', path: 'https://cdn.jsdelivr.net/gh/Eikanya/Live2d-model@master/%E7%A2%A7%E8%93%9D%E8%88%AA%E7%BA%BF%20Azue%20Lane/Azue%20Lane%28JP%29/dafeng_3/dafeng_3.model3.json' }
-      ];
-            var NIKKE_CHARS = [
-        { name: '毒蛇', id: 'c112', v: '40' },
-        { name: '拉毗', id: 'c010', v: '40' },
-        { name: '黑兔', id: 'c271', v: '41' },
-        { name: '白兔', id: 'c270', v: '41' },
-        { name: '白雪公主', id: 'c220', v: '40' },
-        { name: '红莲', id: 'c222', v: '41' }
-      ];
-      var NIKKE_CUR = 'c112';
+      let NIKKE_CUR = DEFAULT_NIKKE;
 
       // Spine 4.0 / 4.1 是两套互不兼容的运行时，按角色版本选
       function nikkeChar(id) {
@@ -299,7 +286,7 @@ function navClass(href: string) {
         document.body.appendChild(s);
       }
 
-      function getMode() { try { return localStorage.getItem(MODE_KEY) || 'live2d'; } catch (e) { return 'live2d'; } }
+      function getMode() { try { return localStorage.getItem(MODE_KEY) || DEFAULT_MODE; } catch (e) { return DEFAULT_MODE; } }
       function setMode(m) {
         try { localStorage.setItem(MODE_KEY, m); } catch (e) {}
         applyMode();

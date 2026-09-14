@@ -1,0 +1,45 @@
+{
+  "live2d_base_scale": 0.05625,
+  "nikke_base_height": 540,
+  "default_mode": "live2d",
+  "default_live2d": "大凤",
+  "default_nikke": "c112",
+  "live2d": [
+    {
+      "name": "大凤",
+      "path": "https://cdn.jsdelivr.net/gh/Eikanya/Live2d-model@master/%E7%A2%A7%E8%93%9D%E8%88%AA%E7%BA%BF%20Azue%20Lane/Azue%20Lane%28JP%29/dafeng_3/dafeng_3.model3.json"
+    }
+  ],
+  "nikke": [
+    {
+      "name": "毒蛇",
+      "id": "c112",
+      "v": "40"
+    },
+    {
+      "name": "拉毗",
+      "id": "c010",
+      "v": "40"
+    },
+    {
+      "name": "黑兔",
+      "id": "c271",
+      "v": "41"
+    },
+    {
+      "name": "白兔",
+      "id": "c270",
+      "v": "41"
+    },
+    {
+      "name": "白雪公主",
+      "id": "c220",
+      "v": "40"
+    },
+    {
+      "name": "红莲",
+      "id": "c222",
+      "v": "41"
+    }
+  ]
+}
