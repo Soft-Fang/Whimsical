@@ -57,14 +57,15 @@ const categoryFor = (type) => topics.find((topic) => topic.type === type)?.name 
 
 // 极简 frontmatter 解析（支持 key: value、引号字符串、- 列表、[a, b] 行内数组）
 function parseFrontmatter(md) {
-  if (!md.startsWith('---')) return { attrs: {}, body: md };
+  if (!md.startsWith('---')) return { attrs: {}, body: md, lines: {}, bodyStartLine: 1 };
   const end = md.indexOf('\n---', 3);
-  if (end === -1) return { attrs: {}, body: md };
+  if (end === -1) return { attrs: {}, body: md, lines: {}, bodyStartLine: 1 };
   const fm = md.slice(3, end);
   const body = md.slice(end + 4).replace(/^\r?\n/, '');
   const attrs = {};
+  const lines = {};
   let current = null;
-  for (const rawLine of fm.split(/\r?\n/)) {
+  for (const [lineIndex, rawLine] of fm.split(/\r?\n/).entries()) {
     const line = rawLine.replace(/\s+$/, '');
     const listMatch = line.match(/^\s*-\s+(.*)$/);
     if (listMatch && current && Array.isArray(attrs[current])) {
@@ -74,6 +75,7 @@ function parseFrontmatter(md) {
     const kv = line.match(/^([A-Za-z][A-Za-z0-9_-]*)\s*:\s*(.*)$/);
     if (kv) {
       const key = kv[1];
+      lines[key] = lineIndex + 2;
       let val = kv[2].trim();
       if (val === '' ) {
         attrs[key] = [];
@@ -88,7 +90,7 @@ function parseFrontmatter(md) {
       current = key;
     }
   }
-  return { attrs, body };
+  return { attrs, body, lines, bodyStartLine: fm.split(/\r?\n/).length + 3 };
 }
 
 function readDir(dir) {
@@ -100,9 +102,18 @@ function readDir(dir) {
     .map((f) => {
       const rel = `${dir}/${f}`;
       const raw = readFileSync(join(root, rel), 'utf8');
-      const { attrs, body } = parseFrontmatter(raw);
-      return { file: f, rel, slug: f.replace(/\.(md|mdx)$/, ''), attrs, body };
+      const { attrs, body, lines, bodyStartLine } = parseFrontmatter(raw);
+      return { file: f, rel, slug: f.replace(/\.(md|mdx)$/, ''), attrs, body, lines, bodyStartLine };
     });
+}
+
+function details(item, code, field, extra = {}) {
+  return {
+    code,
+    file: item.rel,
+    ...(field ? { field, line: item.lines?.[field] } : {}),
+    ...extra,
+  };
 }
 
 // ── 专题归属：category 必须与所在文件夹一致（专题由文件夹决定，勿手改）──
@@ -119,7 +130,7 @@ function checkCover(item) {
   const c = typeof item.attrs.cover === 'string' ? item.attrs.cover : '';
   if (!c || /^https?:\/\//i.test(c)) return;
   const p = join(root, 'public', c.replace(/^\/+/, ''));
-  if (!existsSync(p)) warn(`[${item.rel}] cover 指向 public 下不存在的文件：${c}`);
+  if (!existsSync(p)) warn(`[${item.rel}] cover 指向 public 下不存在的文件：${c}`, details(item, 'COVER_NOT_FOUND', 'cover', { value: c }));
 }
 
 // ── 图片存在性检查 ──
@@ -133,11 +144,11 @@ function checkImages(item) {
     if (src.startsWith('/')) {
       const rel = src.startsWith(BASE) ? src.slice(BASE.length) : src;
       const p = join(root, 'public', rel.replace(/^\//, ''));
-      if (!existsSync(p)) warn(`[${item.rel}] 引用了 public 下不存在的图片：${src}`);
+      if (!existsSync(p)) warn(`[${item.rel}] 引用了 public 下不存在的图片：${src}`, details(item, 'IMAGE_NOT_FOUND', '', { src, line: item.bodyStartLine + item.body.slice(0, m.index).split(/\r?\n/).length - 1 }));
       continue;
     }
     const p = resolve(join(root, dirname(item.rel)), src);
-    if (!existsSync(p)) err(`[${item.rel}] 相对路径图片不存在：${src}`);
+    if (!existsSync(p)) err(`[${item.rel}] 相对路径图片不存在：${src}`, details(item, 'IMAGE_NOT_FOUND', '', { src, line: item.bodyStartLine + item.body.slice(0, m.index).split(/\r?\n/).length - 1 }));
   }
 }
 
@@ -151,19 +162,19 @@ console.log(`📄 正文：${posts.length} 篇`);
 for (const p of posts) {
   const a = p.attrs;
   const ctx = `[${p.rel}]`;
-  if (!a.title) err(`${ctx} 缺少 title`);
-  else if (String(a.title).length > 40) warn(`${ctx} 标题偏长（${String(a.title).length} 字），建议 ≤40`);
-  if (!a.description) err(`${ctx} 缺少 description`);
-  if (!a.pubDate) err(`${ctx} 缺少 pubDate`);
-  else if (!/^\d{4}-\d{2}-\d{2}$/.test(a.pubDate)) err(`${ctx} pubDate 格式应为 YYYY-MM-DD，当前为 ${a.pubDate}`);
-  if (a.status !== undefined && !ALLOWED_STATUS.includes(a.status)) err(`${ctx} status 非法：${a.status}（允许 ${ALLOWED_STATUS.join(' / ')}）`);
-  if (a.status && a.status !== 'published') err(`${ctx} 状态为 ${a.status}，位于公开区 content/blog/，不会被发布。草稿请放 content/drafts/，私密请放 content/private/`);
+  if (!a.title) err(`${ctx} 缺少 title`, details(p, 'MISSING_FIELD', 'title'));
+  else if (String(a.title).length > 40) warn(`${ctx} 标题偏长（${String(a.title).length} 字），建议 ≤40`, details(p, 'TITLE_TOO_LONG', 'title', { length: String(a.title).length }));
+  if (!a.description) err(`${ctx} 缺少 description`, details(p, 'MISSING_FIELD', 'description'));
+  if (!a.pubDate) err(`${ctx} 缺少 pubDate`, details(p, 'MISSING_FIELD', 'pubDate'));
+  else if (!/^\d{4}-\d{2}-\d{2}$/.test(a.pubDate)) err(`${ctx} pubDate 格式应为 YYYY-MM-DD，当前为 ${a.pubDate}`, details(p, 'INVALID_DATE', 'pubDate', { value: a.pubDate }));
+  if (a.status !== undefined && !ALLOWED_STATUS.includes(a.status)) err(`${ctx} status 非法：${a.status}（允许 ${ALLOWED_STATUS.join(' / ')}）`, details(p, 'INVALID_STATUS', 'status', { value: a.status }));
+  if (a.status && a.status !== 'published') err(`${ctx} 状态为 ${a.status}，位于公开区 content/blog/，不会被发布。草稿请放 content/drafts/，私密请放 content/private/`, details(p, 'WRONG_DIRECTORY', 'status', { value: a.status }));
   checkCategory(p, categoryFor('blog'));
   checkCover(p);
   for (const kind of ['references', 'links']) {
     const arr = a[kind];
     if (!Array.isArray(arr) || arr.length === 0) continue;
-    for (const ref of arr) if (!slugs.has(ref)) err(`${ctx} ${kind} 指向不存在的文章 slug「${ref}」`);
+    for (const ref of arr) if (!slugs.has(ref)) err(`${ctx} ${kind} 指向不存在的文章 slug「${ref}」`, details(p, 'INVALID_REFERENCE', kind, { value: ref }));
   }
   checkImages(p);
 }
@@ -175,9 +186,9 @@ console.log(`✍️ 随笔：${talks.length} 篇`);
 for (const t of talks) {
   const a = t.attrs;
   const ctx = `[${t.rel}]`;
-  if (!a.title) warn(`${ctx} 未设置 title，卡片会退化为文件名「${t.slug}」`);
-  if (!a.update) warn(`${ctx} 缺少 update（日期），排序会失效`);
-  else if (!/^\d{4}-\d{2}-\d{2}(-\d{2}:\d{2})?$/.test(a.update)) warn(`${ctx} update 建议格式 YYYY-MM-DD 或 YYYY-MM-DD-HH:mm，当前为 ${a.update}`);
+  if (!a.title) warn(`${ctx} 未设置 title，卡片会退化为文件名「${t.slug}」`, details(t, 'MISSING_FIELD', 'title'));
+  if (!a.update) warn(`${ctx} 缺少 update（日期），排序会失效`, details(t, 'MISSING_FIELD', 'update'));
+  else if (!/^\d{4}-\d{2}-\d{2}(-\d{2}:\d{2})?$/.test(a.update)) warn(`${ctx} update 建议格式 YYYY-MM-DD 或 YYYY-MM-DD-HH:mm，当前为 ${a.update}`, details(t, 'INVALID_DATE', 'update', { value: a.update }));
   checkCategory(t, categoryFor('talk'));
   checkCover(t);
   checkImages(t);
@@ -190,9 +201,9 @@ console.log(`🧩 应用：${apps.length} 个`);
 for (const a of apps) {
   const d = a.attrs;
   const ctx = `[${a.rel}]`;
-  if (!d.name) err(`${ctx} 缺少 name`);
-  if (!d.description) err(`${ctx} 缺少 description`);
-  if (!d.url && !d.repo) warn(`${ctx} 既没有 url 也没有 repo，读者无法访问`);
+  if (!d.name) err(`${ctx} 缺少 name`, details(a, 'MISSING_FIELD', 'name'));
+  if (!d.description) err(`${ctx} 缺少 description`, details(a, 'MISSING_FIELD', 'description'));
+  if (!d.url && !d.repo) warn(`${ctx} 既没有 url 也没有 repo，读者无法访问`, details(a, 'MISSING_LINK', 'url'));
   checkCategory(a, categoryFor('apps'));
   checkCover(a);
   checkImages(a);
@@ -203,7 +214,7 @@ const tagCount = new Map();
 for (const p of posts) {
   const tags = Array.isArray(p.attrs.tags) ? p.attrs.tags : [];
   for (const t of tags) {
-    if (t !== t.trim()) warn(`[${p.rel}] 标签「${t}」含首尾空格，会导致筛选失效`);
+    if (t !== t.trim()) warn(`[${p.rel}] 标签「${t}」含首尾空格，会导致筛选失效`, details(p, 'TAG_WHITESPACE', 'tags', { value: t }));
     const key = t.trim();
     tagCount.set(key, (tagCount.get(key) || 0) + 1);
   }
