@@ -7,15 +7,53 @@ import { execFileSync } from 'node:child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
+const JSON_MODE = process.argv.includes('--json');
 
 const ALLOWED_STATUS = ['draft', 'review', 'published', 'private'];
 const BASE = '/Whimsical';
 
 let errors = 0;
 let warnings = 0;
-const err = (msg) => { errors++; console.error('  ✗ ' + msg); };
-const warn = (msg) => { warnings++; console.warn('  ⚠ ' + msg); };
-const info = (msg) => console.log('  ℹ ' + msg);
+const report = {
+  schemaVersion: 1,
+  generatedAt: new Date().toISOString(),
+  ok: true,
+  errors: 0,
+  warnings: 0,
+  stats: {},
+  items: [],
+};
+
+const originalLog = console.log.bind(console);
+const originalError = console.error.bind(console);
+if (JSON_MODE) {
+  console.log = () => {};
+  console.error = () => {};
+}
+
+function inferFile(message) {
+  const match = message.match(/^\[(.*?)\]/);
+  return match ? match[1] : undefined;
+}
+
+const record = (severity, message, details = {}) => {
+  if (severity === 'error') errors++;
+  if (severity === 'warning') warnings++;
+  const item = { severity, code: details.code || 'GENERAL', message, ...details };
+  if (!item.file) item.file = inferFile(message);
+  report.items.push(item);
+  if (!JSON_MODE) {
+    const prefix = severity === 'error' ? '  ✗ ' : severity === 'warning' ? '  ⚠ ' : '  ℹ ';
+    (severity === 'error' ? originalError : originalLog)(prefix + message);
+  }
+};
+
+const err = (msg, details = {}) => record('error', msg, details);
+const warn = (msg, details = {}) => record('warning', msg, details);
+const info = (msg, details = {}) => record('info', msg, details);
+
+const topics = JSON.parse(readFileSync(join(root, 'src', 'data', 'topics.json'), 'utf8'));
+const categoryFor = (type) => topics.find((topic) => topic.type === type)?.name || type;
 
 // 极简 frontmatter 解析（支持 key: value、引号字符串、- 列表、[a, b] 行内数组）
 function parseFrontmatter(md) {
@@ -107,6 +145,7 @@ console.log('内容体检中……\n');
 
 // ── 1. 正文（blog）──
 const posts = readDir('content/blog');
+report.stats.blogPosts = posts.length;
 const slugs = new Set(posts.map((p) => p.slug));
 console.log(`📄 正文：${posts.length} 篇`);
 for (const p of posts) {
@@ -119,7 +158,7 @@ for (const p of posts) {
   else if (!/^\d{4}-\d{2}-\d{2}$/.test(a.pubDate)) err(`${ctx} pubDate 格式应为 YYYY-MM-DD，当前为 ${a.pubDate}`);
   if (a.status !== undefined && !ALLOWED_STATUS.includes(a.status)) err(`${ctx} status 非法：${a.status}（允许 ${ALLOWED_STATUS.join(' / ')}）`);
   if (a.status && a.status !== 'published') err(`${ctx} 状态为 ${a.status}，位于公开区 content/blog/，不会被发布。草稿请放 content/drafts/，私密请放 content/private/`);
-  checkCategory(p, '正文');
+  checkCategory(p, categoryFor('blog'));
   checkCover(p);
   for (const kind of ['references', 'links']) {
     const arr = a[kind];
@@ -131,6 +170,7 @@ for (const p of posts) {
 
 // ── 2. 随笔（talk）──
 const talks = readDir('content/talk');
+report.stats.talks = talks.length;
 console.log(`✍️ 随笔：${talks.length} 篇`);
 for (const t of talks) {
   const a = t.attrs;
@@ -138,13 +178,14 @@ for (const t of talks) {
   if (!a.title) warn(`${ctx} 未设置 title，卡片会退化为文件名「${t.slug}」`);
   if (!a.update) warn(`${ctx} 缺少 update（日期），排序会失效`);
   else if (!/^\d{4}-\d{2}-\d{2}(-\d{2}:\d{2})?$/.test(a.update)) warn(`${ctx} update 建议格式 YYYY-MM-DD 或 YYYY-MM-DD-HH:mm，当前为 ${a.update}`);
-  checkCategory(t, '随笔');
+  checkCategory(t, categoryFor('talk'));
   checkCover(t);
   checkImages(t);
 }
 
 // ── 3. 应用（apps）──
 const apps = readDir('content/apps');
+report.stats.apps = apps.length;
 console.log(`🧩 应用：${apps.length} 个`);
 for (const a of apps) {
   const d = a.attrs;
@@ -152,7 +193,7 @@ for (const a of apps) {
   if (!d.name) err(`${ctx} 缺少 name`);
   if (!d.description) err(`${ctx} 缺少 description`);
   if (!d.url && !d.repo) warn(`${ctx} 既没有 url 也没有 repo，读者无法访问`);
-  checkCategory(a, '应用');
+  checkCategory(a, categoryFor('apps'));
   checkCover(a);
   checkImages(a);
 }
@@ -167,6 +208,7 @@ for (const p of posts) {
     tagCount.set(key, (tagCount.get(key) || 0) + 1);
   }
 }
+report.stats.tags = tagCount.size;
 if (tagCount.size) {
   const single = [...tagCount.entries()].filter(([, c]) => c === 1).map(([t]) => t);
   console.log(`🏷️ 标签：${tagCount.size} 个`);
@@ -205,6 +247,7 @@ function walk(dir, out = []) {
   return out;
 }
 const bigImages = [...walk('src/assets'), ...walk('public')].filter((i) => i.size > MAX_IMG);
+report.stats.bigImages = bigImages.length;
 if (bigImages.length) {
   info(`有 ${bigImages.length} 张图片超过 3MB（构建会变慢，建议压缩）：`);
   bigImages.sort((a, b) => b.size - a.size).slice(0, 5).forEach((i) => info(`  ${i.rel} — ${(i.size / 1024 / 1024).toFixed(1)}MB`));
@@ -235,6 +278,15 @@ function secretScan() {
 
 console.log('');
 secretScan();
+
+report.errors = errors;
+report.warnings = warnings;
+report.ok = errors === 0;
+
+if (JSON_MODE) {
+  process.stdout.write(JSON.stringify(report, null, 2) + '\n');
+  process.exit(errors > 0 ? 1 : 0);
+}
 
 console.log(`\n检查完成：${errors} 个错误，${warnings} 个警告`);
 if (errors > 0) {

@@ -2,14 +2,10 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import TopicCard from '../../components/TopicCard.astro';
 import { getImage } from 'astro:assets';
+import topicsConfig from '../../data/topics.json';
 
 const base = import.meta.env.BASE_URL;
-
-const TOPICS = [
-  { slug: 'article', name: '正文' },
-  { slug: 'essay', name: '随笔' },
-  { slug: 'apps', name: '应用' },
-];
+const TOPICS = topicsConfig;
 
 const imgModules = import.meta.glob('/src/assets/**/*.{jpg,jpeg,png,webp}', { eager: true });
 const imgList = [];

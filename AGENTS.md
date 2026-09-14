@@ -57,5 +57,6 @@ blog 文章必填：`title`、`description`、`pubDate`（YYYY-MM-DD）。
 ## 常用命令
 - `npm run dev`      本地预览 http://localhost:4321/Whimsical/
 - `npm run check`    内容体检（frontmatter / 专题归属 / 图片 / 孤岛 / 泄密；0 错误才能提交）
+- `npm run check:json` 内容体检 JSON 输出（供桌面管理模块等程序消费）
 - `npm run encrypt`  加密私有区（需先设 PRIVATE_PASSWORD）
 - `npm run build`    构建

@@ -1,0 +1,20 @@
+[
+  {
+    "slug": "article",
+    "name": "正文",
+    "type": "blog",
+    "folder": "content/blog"
+  },
+  {
+    "slug": "essay",
+    "name": "随笔",
+    "type": "talk",
+    "folder": "content/talk"
+  },
+  {
+    "slug": "apps",
+    "name": "应用",
+    "type": "apps",
+    "folder": "content/apps"
+  }
+]
