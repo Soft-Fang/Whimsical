@@ -3,6 +3,7 @@
 // 图片放在 src/assets/wallpaper/{light,dark}/ 下，构建时由 astro:assets 自动优化
 import { getImage } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
+import wallpaperConfig from '../data/wallpapers.json';
 
 // import.meta.glob 动态导入所有壁纸（构建时静态分析，目录新增图片会自动包含）
 const wallpaperModules = import.meta.glob(
@@ -37,10 +38,14 @@ for (const [path, mod] of Object.entries(wallpaperModules)) {
 lightImages.sort((a, b) => a.name.localeCompare(b.name));
 darkImages.sort((a, b) => a.name.localeCompare(b.name));
 
-// 默认壁纸：优先找"默认light/dark"命名的图，找不到用第一张
+// 默认壁纸来自 src/data/wallpapers.json，找不到配置时回退到旧命名规则和第一张。
 function defaultWallpaper(theme: 'light' | 'dark'): string | null {
   const list = theme === 'dark' ? darkImages : lightImages;
-  return list.find((w) => w.name.includes('默认'))?.src ?? list[0]?.src ?? null;
+  const configured = wallpaperConfig[theme];
+  return list.find((w) => w.name === configured)?.src
+    ?? list.find((w) => w.name.includes('默认'))?.src
+    ?? list[0]?.src
+    ?? null;
 }
 const defaultLight = defaultWallpaper('light');
 const defaultDark = defaultWallpaper('dark');

@@ -6,6 +6,7 @@ import { site } from '../site.config';
 import ThemeToggle from '../components/ThemeToggle.astro';
 import WallpaperPicker from '../components/WallpaperPicker.astro';
 import { getImage } from 'astro:assets';
+import wallpaperConfig from '../data/wallpapers.json';
 
 // B1：找出「默认」壁纸，提前 preload（首屏 LCP 提速）
 const wpModules = import.meta.glob('/src/assets/wallpaper/**/*.{jpg,jpeg,png,webp,gif}', { eager: true });
@@ -13,10 +14,12 @@ let preloadLight: string | null = null;
 let preloadDark: string | null = null;
 for (const [path, mod] of Object.entries(wpModules)) {
   const m = mod as any;
-  if (!m?.default || !path.includes('默认')) continue;
+  const theme = path.includes('/dark/') ? 'dark' : 'light';
+  const fileName = path.split('/').pop() ?? '';
+  if (!m?.default || fileName !== wallpaperConfig[theme]) continue;
   try {
     const opt = await getImage({ src: m.default, width: 1920, format: 'webp' });
-    if (path.includes('/dark/')) preloadDark = opt.src;
+    if (theme === 'dark') preloadDark = opt.src;
     else preloadLight = opt.src;
   } catch (e) {}
 }
