@@ -1,22 +1,23 @@
-// 内容体检脚本：校验 frontmatter、引用/连接有效性、孤岛文章、泄密风险
+// 内容体检脚本：校验 frontmatter、图片、引用/连接、孤岛文章、标签规范、泄密风险
 // 用法：npm run check
-import { readFileSync, readdirSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
-const blogDir = join(root, 'content', 'blog');
 
 const ALLOWED_STATUS = ['draft', 'review', 'published', 'private'];
+const BASE = '/Whimsical';
 
 let errors = 0;
 let warnings = 0;
 const err = (msg) => { errors++; console.error('  ✗ ' + msg); };
 const warn = (msg) => { warnings++; console.warn('  ⚠ ' + msg); };
+const info = (msg) => console.log('  ℹ ' + msg);
 
-// 极简 frontmatter 解析（支持 key: value、引号字符串、- 列表）
+// 极简 frontmatter 解析（支持 key: value、引号字符串、- 列表、[a, b] 行内数组）
 function parseFrontmatter(md) {
   if (!md.startsWith('---')) return { attrs: {}, body: md };
   const end = md.indexOf('\n---', 3);
@@ -35,9 +36,14 @@ function parseFrontmatter(md) {
     const kv = line.match(/^([A-Za-z][A-Za-z0-9_-]*)\s*:\s*(.*)$/);
     if (kv) {
       const key = kv[1];
-      const val = kv[2].trim();
-      if (val === '' || val === '[]') {
+      let val = kv[2].trim();
+      if (val === '' ) {
         attrs[key] = [];
+        current = key;
+        continue;
+      }
+      if (val.startsWith('[') && val.endsWith(']')) {
+        attrs[key] = val.slice(1, -1).split(',').map((s) => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
       } else {
         attrs[key] = val.replace(/^["']|["']$/g, '');
       }
@@ -47,39 +53,127 @@ function parseFrontmatter(md) {
   return { attrs, body };
 }
 
-function getSlug(file) {
-  return file.replace(/\.(md|mdx)$/, '');
+function readDir(dir) {
+  const abs = join(root, dir);
+  if (!existsSync(abs)) return [];
+  return readdirSync(abs)
+    .filter((f) => /\.mdx?$/.test(f))
+    .sort()
+    .map((f) => {
+      const rel = `${dir}/${f}`;
+      const raw = readFileSync(join(root, rel), 'utf8');
+      const { attrs, body } = parseFrontmatter(raw);
+      return { file: f, rel, slug: f.replace(/\.(md|mdx)$/, ''), attrs, body };
+    });
 }
 
-// 1. 读取所有公开文章
-const files = readdirSync(blogDir).filter((f) => /\.mdx?$/.test(f)).sort();
-const posts = files.map((f) => {
-  const raw = readFileSync(join(blogDir, f), 'utf8');
-  return { slug: getSlug(f), file: f, attrs: parseFrontmatter(raw).attrs };
-});
-const slugs = new Set(posts.map((p) => p.slug));
+// ── 专题归属：category 必须与所在文件夹一致（专题由文件夹决定，勿手改）──
+function checkCategory(item, expected) {
+  const got = item.attrs.category;
+  const val = Array.isArray(got) ? '' : String(got ?? '');
+  if (val && val !== expected) {
+    err(`[${item.rel}] category 为「${val}」，应为「${expected}」（专题由所在文件夹决定，模板已锁死，请勿手改）`);
+  }
+}
 
-// 2. 逐篇校验
+// ── 封面图：cover 若是相对路径，必须存在于 public/ 下 ──
+function checkCover(item) {
+  const c = typeof item.attrs.cover === 'string' ? item.attrs.cover : '';
+  if (!c || /^https?:\/\//i.test(c)) return;
+  const p = join(root, 'public', c.replace(/^\/+/, ''));
+  if (!existsSync(p)) warn(`[${item.rel}] cover 指向 public 下不存在的文件：${c}`);
+}
+
+// ── 图片存在性检查 ──
+const IMG_RE = /!\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+function checkImages(item) {
+  let m;
+  IMG_RE.lastIndex = 0;
+  while ((m = IMG_RE.exec(item.body))) {
+    const src = m[1];
+    if (/^(https?:)?\/\//.test(src) || src.startsWith('data:')) continue; // 远程/内联
+    if (src.startsWith('/')) {
+      const rel = src.startsWith(BASE) ? src.slice(BASE.length) : src;
+      const p = join(root, 'public', rel.replace(/^\//, ''));
+      if (!existsSync(p)) warn(`[${item.rel}] 引用了 public 下不存在的图片：${src}`);
+      continue;
+    }
+    const p = resolve(join(root, dirname(item.rel)), src);
+    if (!existsSync(p)) err(`[${item.rel}] 相对路径图片不存在：${src}`);
+  }
+}
+
+console.log('内容体检中……\n');
+
+// ── 1. 正文（blog）──
+const posts = readDir('content/blog');
+const slugs = new Set(posts.map((p) => p.slug));
+console.log(`📄 正文：${posts.length} 篇`);
 for (const p of posts) {
   const a = p.attrs;
-  const ctx = `[${p.file}]`;
+  const ctx = `[${p.rel}]`;
   if (!a.title) err(`${ctx} 缺少 title`);
+  else if (String(a.title).length > 40) warn(`${ctx} 标题偏长（${String(a.title).length} 字），建议 ≤40`);
   if (!a.description) err(`${ctx} 缺少 description`);
   if (!a.pubDate) err(`${ctx} 缺少 pubDate`);
   else if (!/^\d{4}-\d{2}-\d{2}$/.test(a.pubDate)) err(`${ctx} pubDate 格式应为 YYYY-MM-DD，当前为 ${a.pubDate}`);
   if (a.status !== undefined && !ALLOWED_STATUS.includes(a.status)) err(`${ctx} status 非法：${a.status}（允许 ${ALLOWED_STATUS.join(' / ')}）`);
-  if (a.status && a.status !== 'published') warn(`${ctx} 状态为 ${a.status}，但位于公开区 content/blog/；草稿请放 content/drafts/，私密请放 content/private/`);
-  if (!a.category) warn(`${ctx} 未设置 category（专题）`);
+  if (a.status && a.status !== 'published') err(`${ctx} 状态为 ${a.status}，位于公开区 content/blog/，不会被发布。草稿请放 content/drafts/，私密请放 content/private/`);
+  checkCategory(p, '正文');
+  checkCover(p);
   for (const kind of ['references', 'links']) {
     const arr = a[kind];
     if (!Array.isArray(arr) || arr.length === 0) continue;
-    for (const ref of arr) {
-      if (!slugs.has(ref)) err(`${ctx} ${kind} 指向不存在的文章 slug「${ref}」`);
-    }
+    for (const ref of arr) if (!slugs.has(ref)) err(`${ctx} ${kind} 指向不存在的文章 slug「${ref}」`);
   }
+  checkImages(p);
 }
 
-// 3. 孤岛检测（既无出向连接，也无入向连接）
+// ── 2. 随笔（talk）──
+const talks = readDir('content/talk');
+console.log(`✍️ 随笔：${talks.length} 篇`);
+for (const t of talks) {
+  const a = t.attrs;
+  const ctx = `[${t.rel}]`;
+  if (!a.title) warn(`${ctx} 未设置 title，卡片会退化为文件名「${t.slug}」`);
+  if (!a.update) warn(`${ctx} 缺少 update（日期），排序会失效`);
+  else if (!/^\d{4}-\d{2}-\d{2}(-\d{2}:\d{2})?$/.test(a.update)) warn(`${ctx} update 建议格式 YYYY-MM-DD 或 YYYY-MM-DD-HH:mm，当前为 ${a.update}`);
+  checkCategory(t, '随笔');
+  checkCover(t);
+  checkImages(t);
+}
+
+// ── 3. 应用（apps）──
+const apps = readDir('content/apps');
+console.log(`🧩 应用：${apps.length} 个`);
+for (const a of apps) {
+  const d = a.attrs;
+  const ctx = `[${a.rel}]`;
+  if (!d.name) err(`${ctx} 缺少 name`);
+  if (!d.description) err(`${ctx} 缺少 description`);
+  if (!d.url && !d.repo) warn(`${ctx} 既没有 url 也没有 repo，读者无法访问`);
+  checkCategory(a, '应用');
+  checkCover(a);
+  checkImages(a);
+}
+
+// ── 4. 标签规范 ──
+const tagCount = new Map();
+for (const p of posts) {
+  const tags = Array.isArray(p.attrs.tags) ? p.attrs.tags : [];
+  for (const t of tags) {
+    if (t !== t.trim()) warn(`[${p.rel}] 标签「${t}」含首尾空格，会导致筛选失效`);
+    const key = t.trim();
+    tagCount.set(key, (tagCount.get(key) || 0) + 1);
+  }
+}
+if (tagCount.size) {
+  const single = [...tagCount.entries()].filter(([, c]) => c === 1).map(([t]) => t);
+  console.log(`🏷️ 标签：${tagCount.size} 个`);
+  if (single.length) info(`仅出现 1 次的标签：${single.join('、')}（可考虑合并或复用）`);
+}
+
+// ── 5. 孤岛检测 ──
 const incoming = new Set();
 for (const p of posts) {
   for (const kind of ['references', 'links']) {
@@ -93,11 +187,30 @@ for (const p of posts) {
     ...(Array.isArray(p.attrs.links) ? p.attrs.links : []),
   ];
   if (out.length === 0 && !incoming.has(p.slug)) {
-    warn(`[${p.file}] 是孤岛文章：没有任何引用/连接。建议加 links 或 references 连到旧文章。`);
+    warn(`[${p.rel}] 是孤岛文章：没有任何引用/连接。建议加 links 或 references 连到旧文章。`);
   }
 }
 
-// 4. 泄密风险扫描（针对 git 已跟踪文件）
+// ── 6. 体积检查（图片过大提醒）──
+const MAX_IMG = 3 * 1024 * 1024;
+function walk(dir, out = []) {
+  const abs = join(root, dir);
+  if (!existsSync(abs)) return out;
+  for (const entry of readdirSync(abs)) {
+    const full = join(abs, entry);
+    const st = statSync(full);
+    if (st.isDirectory()) walk(join(dir, entry), out);
+    else if (/\.(png|jpe?g|gif|webp)$/i.test(entry)) out.push({ rel: join(dir, entry).replace(/\\/g, '/'), size: st.size });
+  }
+  return out;
+}
+const bigImages = [...walk('src/assets'), ...walk('public')].filter((i) => i.size > MAX_IMG);
+if (bigImages.length) {
+  info(`有 ${bigImages.length} 张图片超过 3MB（构建会变慢，建议压缩）：`);
+  bigImages.sort((a, b) => b.size - a.size).slice(0, 5).forEach((i) => info(`  ${i.rel} — ${(i.size / 1024 / 1024).toFixed(1)}MB`));
+}
+
+// ── 7. 泄密风险扫描（针对 git 已跟踪文件）──
 function secretScan() {
   let tracked;
   try {
@@ -114,16 +227,13 @@ function secretScan() {
     }
   }
   for (const rel of paths) {
-    if (!/\.md$/.test(rel)) continue;
-    if (!/^content\//.test(rel)) continue;
+    if (!/\.md$/.test(rel) || !/^content\//.test(rel)) continue;
     const content = readFileSync(join(root, rel), 'utf8');
-    if (content.includes('PRIVATE_PASSWORD')) {
-      warn(`${rel} 中出现 PRIVATE_PASSWORD 字样，请确认未泄露真实密码`);
-    }
+    if (content.includes('PRIVATE_PASSWORD')) warn(`${rel} 中出现 PRIVATE_PASSWORD 字样，请确认未泄露真实密码`);
   }
 }
 
-console.log('内容体检中……\n');
+console.log('');
 secretScan();
 
 console.log(`\n检查完成：${errors} 个错误，${warnings} 个警告`);

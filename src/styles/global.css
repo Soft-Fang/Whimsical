@@ -89,3 +89,57 @@ h1, h2, h3, h4, h5, h6 {
 #oml2d-menus {
   display: none !important;
 }
+
+/* A2：Mermaid 图表容器 */
+.mermaid {
+  display: flex;
+  justify-content: center;
+  margin: 1.75rem 0;
+  overflow-x: auto;
+}
+.mermaid svg { max-width: 100%; height: auto; }
+
+/* A1：KaTeX 公式在窄屏可横向滚动 */
+.katex-display { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+
+/* C5：分享按钮 */
+.share-btn {
+  cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--c-fg) 12%, transparent);
+  background: color-mix(in srgb, var(--c-fg) 4%, transparent);
+  color: var(--c-fg);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 12px;
+  transition: all .18s ease;
+}
+.share-btn:hover {
+  color: #fff;
+  border-color: transparent;
+  background: linear-gradient(135deg, #F06292, #A855F7);
+}
+
+/* D1：无障碍 —— 跳到正文 + 统一键盘焦点样式 */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 9999;
+  padding: 8px 14px;
+  border-radius: 0 0 10px 0;
+  background: var(--c-accent);
+  color: #fff;
+  font-size: 13px;
+}
+.skip-link:focus { left: 0; }
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}

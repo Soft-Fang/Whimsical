@@ -1,9 +1,25 @@
 ---
 //默认布局，所有页面都必须套上这个布局，不然壁纸和导航栏功能不能正常工作
 import '../styles/global.css';
+import 'katex/dist/katex.min.css';
 import { site } from '../site.config';
 import ThemeToggle from '../components/ThemeToggle.astro';
 import WallpaperPicker from '../components/WallpaperPicker.astro';
+import { getImage } from 'astro:assets';
+
+// B1：找出「默认」壁纸，提前 preload（首屏 LCP 提速）
+const wpModules = import.meta.glob('/src/assets/wallpaper/**/*.{jpg,jpeg,png,webp,gif}', { eager: true });
+let preloadLight: string | null = null;
+let preloadDark: string | null = null;
+for (const [path, mod] of Object.entries(wpModules)) {
+  const m = mod as any;
+  if (!m?.default || !path.includes('默认')) continue;
+  try {
+    const opt = await getImage({ src: m.default, width: 1920, format: 'webp' });
+    if (path.includes('/dark/')) preloadDark = opt.src;
+    else preloadLight = opt.src;
+  } catch (e) {}
+}
 
 const {
   title,
@@ -49,7 +65,14 @@ function navClass(href: string) {
     {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
    
     <link rel="icon" type="image/png" href={link('/favicon.png')} />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/style.css" />
+    <link rel="manifest" href={link('/manifest.webmanifest')} />
+    <meta name="theme-color" content="#A855F7" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    {preloadLight && <link rel="preload" as="image" href={preloadLight} media="(prefers-color-scheme: light)" />}
+    {preloadDark && <link rel="preload" as="image" href={preloadDark} media="(prefers-color-scheme: dark)" />}
+    <!-- 只加载实际用到的 2 个字重（原本 style.css 会引入 6 个），配合 unicode-range 按需下载子集 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/lxgwwenkai-regular.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/lxgwwenkai-bold.css" />
     <title>{pageTitle}</title>
 
   <script is:inline>
@@ -79,6 +102,8 @@ function navClass(href: string) {
   </head>
 
   <body data-base={base} class="bg-bg text-fg min-h-screen flex flex-col">
+    <!-- D1：无障碍跳转链接（Tab 第一下可出现） -->
+    <a href="#main" class="skip-link">跳到正文</a>
       <div id="reading-progress" transition:persist="reading-progress" style="position:fixed;left:0;top:0;bottom:0;width:5px;z-index:80;pointer-events:none;background:color-mix(in srgb,var(--c-fg) 10%,transparent)">
     <div id="progress-fill" style="position:absolute;left:0;top:0;width:100%;height:0;background:linear-gradient(to bottom,#7C6CFF,#60A5FA,#3DA48F,#F5C542,#F06292)"></div>
   </div>
@@ -93,6 +118,9 @@ function navClass(href: string) {
     </div>
   </div>
   <div id="mascot-min-popup" transition:persist="mascot-min-popup" style="position:fixed;right:14px;bottom:14px;z-index:10001;display:none;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);border-radius:10px;padding:8px 12px;color:#fff;font-size:12px">窗口过小，看板娘已隐藏</div>
+  <button id="back-to-top" type="button" aria-label="回到顶部" title="回到顶部" style="position:fixed;left:16px;bottom:58px;z-index:95;display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:none;border-radius:50%;cursor:pointer;color:#fff;background:linear-gradient(135deg,#F06292,#A855F7);box-shadow:0 6px 18px -6px rgba(168,85,247,.7);opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .25s ease,transform .25s ease">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
+  </button>
   <div id="char-panel" transition:persist="char-panel" style="position:fixed;left:14px;bottom:52px;z-index:10000;display:none;flex-direction:column;gap:4px;background:rgba(0,0,0,.45);backdrop-filter:blur(6px);border-radius:12px;padding:6px"></div>
     <!-- 全宽导航条：logo 在最左，导航+主题/壁纸在最右，中间留空 -->
     <header class="sticky top-4 z-50">
@@ -150,7 +178,7 @@ function navClass(href: string) {
     </div>
 
     <!-- slot 是"页面内容插入的洞"：layout 提供外壳，页面的内容填进这里 -->
-    <main class="flex-1">
+    <main id="main" class="flex-1">
       <slot />
     </main>
     <footer class="px-8 py-6 border-t border-fg/10 text-sm opacity-60">
@@ -233,14 +261,40 @@ function navClass(href: string) {
         { name: '大凤', path: 'https://cdn.jsdelivr.net/gh/Eikanya/Live2d-model@master/%E7%A2%A7%E8%93%9D%E8%88%AA%E7%BA%BF%20Azue%20Lane/Azue%20Lane%28JP%29/dafeng_3/dafeng_3.model3.json' }
       ];
             var NIKKE_CHARS = [
-        { name: '毒蛇', id: 'c112' },
-        { name: '拉毗', id: 'c010' },
-        { name: '黑兔', id: 'c271' },
-        { name: '白兔', id: 'c270' },
-        { name: '白雪公主', id: 'c220' },
-        { name: '红莲', id: 'c222' }
+        { name: '毒蛇', id: 'c112', v: '40' },
+        { name: '拉毗', id: 'c010', v: '40' },
+        { name: '黑兔', id: 'c271', v: '41' },
+        { name: '白兔', id: 'c270', v: '41' },
+        { name: '白雪公主', id: 'c220', v: '40' },
+        { name: '红莲', id: 'c222', v: '41' }
       ];
       var NIKKE_CUR = 'c112';
+
+      // Spine 4.0 / 4.1 是两套互不兼容的运行时，按角色版本选
+      function nikkeChar(id) {
+        for (var i = 0; i < NIKKE_CHARS.length; i++) if (NIKKE_CHARS[i].id === id) return NIKKE_CHARS[i];
+        return { id: id, v: '40' };
+      }
+      function spineLib(v) { return v === '41' ? window.spine41 : window.spine; }
+      function ensureSpineRuntime(v, cb) {
+        var lib = spineLib(v);
+        if (lib && lib.SpinePlayer) { cb(lib); return; }
+        var pending = window.__spine_pending || (window.__spine_pending = {});
+        if (pending[v]) { pending[v].push(cb); return; }
+        pending[v] = [cb];
+        var s = document.createElement('script');
+        s.id = 'spine-script-' + v;
+        s.src = (document.body.dataset.base || '/') + (v === '41' ? 'spine/spine-player41.js' : 'spine/spine-player.js');
+        s.onload = function () {
+          var l = spineLib(v);
+          var q = pending[v] || [];
+          delete pending[v];
+          q.forEach(function (fn) { try { fn(l); } catch (e) {} });
+        };
+        s.onerror = function () { delete pending[v]; };
+        s.async = true;
+        document.body.appendChild(s);
+      }
 
       function getMode() { try { return localStorage.getItem(MODE_KEY) || 'live2d'; } catch (e) { return 'live2d'; } }
       function setMode(m) {
@@ -334,23 +388,19 @@ function navClass(href: string) {
       function ensureNikke() {
         if (window.__nikke_loaded) { applyMode(); resizeNikke(); return; }
         window.__nikke_loaded = true;
-        var s = document.createElement('script');
-        s.id = 'spine-script';
-        s.src = (document.body.dataset.base || '/') + 'spine/spine-player.js';
-        s.onload = function () { initNikke(); };
-        s.async = true;
-        document.body.appendChild(s);
+        ensureSpineRuntime(nikkeChar(NIKKE_CUR).v, function () { initNikke(); });
       }
 
       function initNikke() {
         if (window.__nikke_inited) { applyMode(); resizeNikke(); return; }
         window.__nikke_inited = true;
-        createNikkePlayer();
+        ensureSpineRuntime(nikkeChar(NIKKE_CUR).v, function (lib) { createNikkePlayer(lib); });
       }
 
-      function createNikkePlayer() {
+      function createNikkePlayer(lib) {
+        lib = lib || spineLib(nikkeChar(NIKKE_CUR).v);
         var host = document.getElementById('nikke-host');
-        if (!host || !window.spine || !window.spine.SpinePlayer) return;
+        if (!host || !lib || !lib.SpinePlayer) return;
         var base = (document.body.dataset.base || '/') + 'nikke/' + NIKKE_CUR + '/' + NIKKE_CUR + '_00';
         host.innerHTML = '';
         var c = document.createElement('div');
@@ -358,7 +408,7 @@ function navClass(href: string) {
         c.style.cssText = 'width:100%;height:100%;';
         host.appendChild(c);
         try {
-          window.__nikke_player = new window.spine.SpinePlayer('nikke-container', {
+          window.__nikke_player = new lib.SpinePlayer('nikke-container', {
             skelUrl: base + '.skel',
             atlasUrl: base + '.atlas',
             animation: 'idle',
@@ -380,11 +430,11 @@ function navClass(href: string) {
                   host.style.width = targetW + 'px';
                   host.style.height = NIKKE_BASE_H + 'px';
                   try { player.dispose(); } catch (e) {}
-                  createNikkePlayer();
+                  createNikkePlayer(lib);
                   return;
                 }
               }
-              setupNikkeInteraction(player);
+              setupNikkeInteraction(player, lib);
               resizeNikke();
             }
           });
@@ -402,10 +452,10 @@ function navClass(href: string) {
         });
       }
 
-      function setupNikkeInteraction(player) {
+      function setupNikkeInteraction(player, lib) {
         try {
-          if (window.spine.CameraController && player.canvas && player.sceneRenderer) {
-            new window.spine.CameraController(player.canvas, player.sceneRenderer.camera);
+          if (lib && lib.CameraController && player.canvas && player.sceneRenderer) {
+            new lib.CameraController(player.canvas, player.sceneRenderer.camera);
           }
         } catch (e) {}
         try {
@@ -462,7 +512,8 @@ function navClass(href: string) {
         NIKKE_CUR = id;
         window.__nikke_refit_count = 0;
         if (window.__nikke_player) { try { window.__nikke_player.dispose(); } catch (e) {} }
-        createNikkePlayer();
+        window.__nikke_player = null;
+        ensureSpineRuntime(nikkeChar(id).v, function (lib) { createNikkePlayer(lib); });
       }
 
       function renderCharPanel() {
@@ -515,7 +566,19 @@ function navClass(href: string) {
       bindButtons();
       applyMode();
       window.addEventListener('resize', onResize);
-      if (getMode() === 'viper') { ensureNikke(); } else { ensureLive2D(); }
+      // D3：Esc 关闭角色面板
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') hideCharPanel();
+      });
+      // B2：等首屏空闲后再加载看板娘（Live2D 1MB + Spine + 模型素材），不与 LCP 抢带宽
+      function bootMascot() {
+        if (getMode() === 'viper') { ensureNikke(); } else { ensureLive2D(); }
+      }
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(bootMascot, { timeout: 2500 });
+      } else {
+        setTimeout(bootMascot, 1200);
+      }
     })();
   </script>
 
@@ -629,6 +692,129 @@ function navClass(href: string) {
         requestAnimationFrame(loop);
       }
       loop();
-    })();</script>
+    })();
+
+    // ===== 代码块复制按钮 =====
+    (function () {
+      function run() {
+        var blocks = document.querySelectorAll('#post-content pre, .prose pre');
+        blocks.forEach(function (pre) {
+          if (pre.querySelector('.code-copy')) return;
+          if (getComputedStyle(pre).position === 'static') pre.style.position = 'relative';
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'code-copy';
+          btn.textContent = '复制';
+          btn.setAttribute('aria-label', '复制代码');
+          btn.style.cssText = 'position:absolute;top:8px;right:8px;z-index:2;cursor:pointer;border:none;border-radius:8px;padding:3px 9px;font-size:11px;color:#fff;background:rgba(255,255,255,.16);backdrop-filter:blur(4px);opacity:0;transition:opacity .2s ease,background .2s ease';
+          btn.onmouseenter = function () { btn.style.background = 'rgba(255,255,255,.28)'; };
+          btn.onmouseleave = function () { btn.style.background = 'rgba(255,255,255,.16)'; };
+          btn.onclick = function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var code = pre.querySelector('code') || pre;
+            var text = code.innerText || '';
+            var done = function (label) {
+              btn.textContent = label;
+              setTimeout(function () { btn.textContent = '复制'; }, 1600);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text).then(function () { done('已复制 ✓'); }, function () { done('复制失败'); });
+            } else {
+              var ta = document.createElement('textarea');
+              ta.value = text; document.body.appendChild(ta); ta.select();
+              try { document.execCommand('copy'); done('已复制 ✓'); } catch (err) { done('复制失败'); }
+              ta.remove();
+            }
+          };
+          pre.appendChild(btn);
+          pre.addEventListener('mouseenter', function () { btn.style.opacity = '1'; });
+          pre.addEventListener('mouseleave', function () { btn.style.opacity = '0'; });
+        });
+      }
+      document.addEventListener('astro:after-swap', run);
+      run();
+    })();
+
+    // ===== 回到顶部 =====
+    (function () {
+      var btn = document.getElementById('back-to-top');
+      if (!btn) return;
+      function update() {
+        var show = window.scrollY > 400;
+        btn.style.opacity = show ? '1' : '0';
+        btn.style.pointerEvents = show ? 'auto' : 'none';
+        btn.style.transform = show ? 'translateY(0)' : 'translateY(8px)';
+      }
+      window.addEventListener('scroll', update, { passive: true });
+      btn.onclick = function () { window.scrollTo({ top: 0, behavior: 'smooth' }); };
+      update();
+    })();
+
+    // ===== E3：注册 Service Worker（离线缓存静态资源）=====
+    (function () {
+      if (!('serviceWorker' in navigator)) return;
+      window.addEventListener('load', function () {
+        try {
+          navigator.serviceWorker.register((document.body.dataset.base || '/') + 'sw.js').catch(function () {});
+        } catch (e) {}
+      });
+    })();
+
+    // ===== C5：分享按钮（复制链接）=====
+    (function () {
+      document.addEventListener('click', function (e) {
+        var btn = e.target && e.target.closest ? e.target.closest('[data-share-copy]') : null;
+        if (!btn) return;
+        var url = btn.getAttribute('data-url') || location.href;
+        var old = btn.textContent;
+        var done = function (label) { btn.textContent = label; setTimeout(function () { btn.textContent = old; }, 1600); };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(function () { done('已复制 ✓'); }, function () { done('复制失败'); });
+        } else { done('不支持'); }
+      });
+    })();
+
+    // ===== A2：Mermaid 图表（页面里真有图表时才按需加载）=====
+    (function () {
+      var SEL = '#post-content pre[data-language="mermaid"], .prose pre[data-language="mermaid"], #post-content pre > code.language-mermaid, .prose pre > code.language-mermaid';
+      function convert() {
+        var nodes = document.querySelectorAll(SEL);
+        nodes.forEach(function (el) {
+          var pre = el.tagName === 'PRE' ? el : el.parentElement;
+          if (!pre || pre.tagName !== 'PRE') return;
+          var code = pre.querySelector('code');
+          var div = document.createElement('div');
+          div.className = 'mermaid';
+          div.textContent = (code || pre).textContent || '';
+          pre.replaceWith(div);
+        });
+        return document.querySelectorAll('.mermaid').length;
+      }
+      function render() {
+        var count = convert();
+        if (!count || !window.mermaid) return;
+        window.mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'loose',
+          theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default',
+        });
+        window.mermaid.run({ querySelector: '.mermaid' });
+      }
+      function run() {
+        if (!document.querySelector(SEL)) return;
+        if (window.mermaid) { render(); return; }
+        if (window.__mermaid_loading) return;
+        window.__mermaid_loading = true;
+        var s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js';
+        s.onload = function () { window.__mermaid_loading = false; render(); };
+        s.onerror = function () { window.__mermaid_loading = false; };
+        document.body.appendChild(s);
+      }
+      document.addEventListener('astro:after-swap', run);
+      run();
+    })();
+  </script>
 </body>
 </html>

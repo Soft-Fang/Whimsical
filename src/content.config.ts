@@ -23,6 +23,8 @@ const blog = defineCollection({
     title: z.string(),
     description: z.string(),
     pubDate: dateString,
+    // 最后更新时间（可选）：比 pubDate 新时，页面会显示「更新于」并输出 dateModified
+    updated: dateString.optional(),
     // 内容生命周期：draft(草稿) / review(待确认) / published(公开) / private(私密)
     // 注意：公开内容区 content/blog/ 只放 published；草稿放 content/drafts/，私密放 content/private/
     status: z.enum(['draft', 'review', 'published', 'private']).default('published'),
@@ -32,6 +34,8 @@ const blog = defineCollection({
     links: stringList.optional(),
     // 专题标签：按文件夹自动确定（content/blog/ = 正文），模板已锁死，勿手改
     category: z.string().optional(),
+    // 封面图：外链或相对路径（如 'covers/xxx.webp'，文件放 public/covers/）；留空则自动配图
+    cover: z.string().optional(),
     tags: stringList.optional(),
   }),
 });
@@ -44,6 +48,8 @@ const talk = defineCollection({
     description: z.string().optional(),
     // 专题标签：按文件夹自动确定（content/talk/ = 随笔），模板已锁死，勿手改
     category: z.string().optional(),
+    // 封面图：外链或相对路径（如 'covers/xxx.webp'）；留空则自动配图
+    cover: z.string().optional(),
   }),
 });
 
@@ -56,6 +62,8 @@ const apps = defineCollection({
     description: z.string(),
     // 专题标签：按文件夹自动确定（content/apps/ = 应用），模板已锁死，勿手改
     category: z.string().optional(),
+    // 封面图：外链或相对路径（如 'covers/xxx.webp'）；留空则自动配图
+    cover: z.string().optional(),
     tags: stringList.optional(),
     featured: z.boolean().default(false),
   }),

@@ -1,24 +1,19 @@
 {
-  "name": "astro-blog-template",
-  "description": "A modern blog template built with Astro 7 and Tailwind CSS 4. Dark/light themes, wallpaper system, photo albums, daily talk, archive with search & tags, table of contents, full SEO, RSS and sitemap.",
+  "name": "whimsical",
+  "description": "个人博客：Astro 7 + Tailwind CSS 4，部署在 GitHub Pages。主题衍生自 good-looking-basics-blog（MIT）。",
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
-  "homepage": "https://ruijieking.github.io/",
+  "homepage": "https://soft-fang.github.io/Whimsical/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ruijieking/New-blog-v3.git"
+    "url": "https://github.com/Soft-Fang/Whimsical.git"
   },
   "keywords": [
     "astro",
-    "astro-template",
-    "astro-blog",
     "blog",
-    "blog-template",
     "tailwindcss",
-    "tailwind",
-    "astro-component",
-    "withastro"
+    "obsidian"
   ],
   "engines": {
     "node": ">=22.12.0"
@@ -31,16 +26,22 @@
     "astro": "astro",
     "encrypt": "node scripts/encrypt.mjs",
     "check": "node scripts/check.mjs",
+    "compress": "node scripts/compress-images.mjs",
+    "backup": "powershell -ExecutionPolicy Bypass -File scripts/backup.ps1",
     "setup": "node setup/lib/bootstrap.mjs",
     "setup:export": "node setup/lib/export.mjs",
     "setup:docs": "node setup/lib/render-docs.mjs"
   },
   "dependencies": {
+    "@astrojs/markdown-remark": "^7.2.2",
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.3",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.1.6",
+    "katex": "^0.18.7",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0",
     "sharp": "^0.35.3",
     "tailwindcss": "^4.3.3"
   },

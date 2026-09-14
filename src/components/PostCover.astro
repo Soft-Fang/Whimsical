@@ -3,7 +3,7 @@ interface Props {
   href: string;
   title: string;
   date?: string;
-  image?: string | null;
+  image?: { src: string; srcset?: string } | null;
   index?: number;
   type?: string;
   tags?: string[];
@@ -28,7 +28,7 @@ const delay = index * 60;
   >
     <div class="relative aspect-[16/10] w-full overflow-hidden">
       {image ? (
-        <img src={image} alt={title} loading="lazy" class="anime-parallax absolute inset-0 h-full w-full object-cover" style="transform:scale(1.16)" />
+        <img src={image.src} srcset={image.srcset} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw" alt={title} loading="lazy" class="anime-parallax absolute inset-0 h-full w-full object-cover" style="transform:scale(1.16)" />
       ) : (
         <div class="absolute inset-0" style={`background:${grad}`}></div>
       )}

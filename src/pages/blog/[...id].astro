@@ -1,14 +1,17 @@
 ---
 // 博客文章阅读详情页
-import { getCollection, render } from 'astro:content';
+import { render } from 'astro:content';
+import { getPublishedPosts } from '../../lib/posts';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import { site } from '../../site.config';
 import ReadFrostedGlass from '../../components/ReadFrostedGlass.astro';
 
 import type { CollectionEntry } from 'astro:content';
 
+const base = import.meta.env.BASE_URL;
+
 export async function getStaticPaths() {
-  const posts = await getCollection('blog');
+  const posts = await getPublishedPosts();
   return posts.map((post) => ({
     params: { id: post.id },
     props: { post },
@@ -21,7 +24,13 @@ interface Props {
 
 const { post } = Astro.props;
 const { Content } = await render(post);
-const { title, description, pubDate, category, tags } = post.data;
+const { title, description, pubDate, updated, category, tags } = post.data;
+
+// C3/C5：绝对地址（用于面包屑、分享、结构化数据）
+const origin = (site.url || 'https://example.com').replace(/\/$/, '');
+const abs = (path: string) => origin + base.replace(/\/$/, '') + '/' + path.replace(/^\//, '');
+const postUrl = abs('blog/' + post.id);
+const showUpdated = updated && updated !== pubDate;
 ---
 
 <BaseLayout
@@ -30,17 +39,40 @@ const { title, description, pubDate, category, tags } = post.data;
   ogDescription={description}
   jsonLd={{
     '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
-    headline: title,
-    description,
-    datePublished: pubDate,
-    author: { '@type': 'Person', name: site.author.name },
-    image: site.url + site.ogImage,
+    '@graph': [
+      {
+        '@type': 'BlogPosting',
+        headline: title,
+        description,
+        datePublished: pubDate,
+        dateModified: updated ?? pubDate,
+        author: { '@type': 'Person', name: site.author.name },
+        image: site.url + site.ogImage,
+        mainEntityOfPage: { '@type': 'WebPage', '@id': postUrl },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: '首页', item: abs('') },
+          { '@type': 'ListItem', position: 2, name: '文章', item: abs('posts') },
+          { '@type': 'ListItem', position: 3, name: title, item: postUrl },
+        ],
+      },
+    ],
   }}
 >
   <div class="max-w-5xl mx-auto px-6 pt-24 pb-16 flex items-start gap-10">
     <!-- 正文区 -->
     <div class="flex-1 min-w-0 max-w-2xl mx-auto">
+        <!-- C3：面包屑 -->
+    <nav aria-label="面包屑" class="mb-3 flex items-center gap-1.5 text-xs text-fg/40">
+      <a href={base} class="hover:text-accent transition-colors">首页</a>
+      <span class="text-fg/20">/</span>
+      <a href={base + 'posts'} class="hover:text-accent transition-colors">文章</a>
+      <span class="text-fg/20">/</span>
+      <span class="max-w-[14rem] truncate text-fg/60">{title}</span>
+    </nav>
+
     <ReadFrostedGlass>
       <!-- 分类标签 -->
       
@@ -72,6 +104,9 @@ const { title, description, pubDate, category, tags } = post.data;
       <time datetime={pubDate} class="text-sm text-fg/35 font-mono">
         {pubDate}
       </time>
+      {showUpdated && (
+      <span class="text-sm text-fg/35 font-mono">· 更新于 <time datetime={updated}>{updated}</time></span>
+      )}
       {tags && tags.length > 0 && (
       <div class="flex flex-wrap gap-1.5">
         {tags.map((tag) => (
@@ -84,7 +119,16 @@ const { title, description, pubDate, category, tags } = post.data;
     </div>
     
 
-    <!-- id="post-content" 正文：prose 排版 -->
+        <!-- C5：分享 -->
+    <div class="mt-5 flex flex-wrap items-center gap-2 not-prose">
+      <span class="text-xs text-fg/35">分享</span>
+      <button type="button" class="share-btn" data-share-copy data-url={postUrl}>复制链接</button>
+      <a class="share-btn" target="_blank" rel="noopener"
+         href={'https://service.weibo.com/share/share.php?url=' + encodeURIComponent(postUrl) + '&title=' + encodeURIComponent(title)}>微博</a>
+      <a class="share-btn" target="_blank" rel="noopener"
+         href={'https://twitter.com/intent/tweet?url=' + encodeURIComponent(postUrl) + '&text=' + encodeURIComponent(title)}>X</a>
+    </div>
+<!-- id="post-content" 正文：prose 排版 -->
     
     <div id="post-content" class="mt-8 prose prose-neutral dark:prose-invert max-w-none text-lg
                 prose-p:leading-relaxed prose-p:my-5 prose-p:text-fg
@@ -107,7 +151,16 @@ const { title, description, pubDate, category, tags } = post.data;
 
     <!-- 右侧目录（桌面端显示，手机端隐藏） -->
     <aside id="post-toc-aside" class="hidden md:block w-60 shrink-0 sticky top-24">
-      <ReadFrostedGlass>
+          <!-- C3：面包屑 -->
+    <nav aria-label="面包屑" class="mb-3 flex items-center gap-1.5 text-xs text-fg/40">
+      <a href={base} class="hover:text-accent transition-colors">首页</a>
+      <span class="text-fg/20">/</span>
+      <a href={base + 'posts'} class="hover:text-accent transition-colors">文章</a>
+      <span class="text-fg/20">/</span>
+      <span class="max-w-[14rem] truncate text-fg/60">{title}</span>
+    </nav>
+
+    <ReadFrostedGlass>
         <p class="text-xs tracking-[0.3em] uppercase text-fg/30 mb-3">目录</p>
         <nav id="post-toc" class="flex flex-col gap-1 max-h-[60vh] overflow-y-auto no-scrollbar"></nav>
       </ReadFrostedGlass>

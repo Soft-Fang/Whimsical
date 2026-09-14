@@ -2,7 +2,8 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import PostCard from '../../components/PostCard.astro';
 import { getCollection } from 'astro:content';
-import { getImage } from 'astro:assets';
+import { makeCover } from '../../lib/covers';
+import { getPublishedPosts, coverURL } from '../../lib/posts';
 
 const base = import.meta.env.BASE_URL;
 
@@ -19,7 +20,7 @@ export async function getStaticPaths() {
 const { topic } = Astro.props;
 
 const blogPosts = topic.type === 'blog'
-  ? (await getCollection('blog')).sort((a, b) => b.data.pubDate.localeCompare(a.data.pubDate))
+  ? (await getPublishedPosts()).sort((a, b) => b.data.pubDate.localeCompare(a.data.pubDate))
   : [];
 
 const talks = topic.type === 'talk'
@@ -30,19 +31,7 @@ const apps = topic.type === 'apps'
   ? (await getCollection('apps')).sort((a, b) => Number(b.data.featured) - Number(a.data.featured))
   : [];
 
-// 二次元插画缩略图池（复用仓库已有素材）
-const imgModules = import.meta.glob('/src/assets/**/*.{jpg,jpeg,png,webp}', { eager: true });
-const imgList = [];
-for (const mod of Object.values(imgModules)) {
-  if (mod && mod.default) imgList.push(mod.default);
-}
-async function thumb(i: number) {
-  if (!imgList.length) return null;
-  try {
-    const opt = await getImage({ src: imgList[i % imgList.length], width: 320, format: 'webp' });
-    return opt.src;
-  } catch (e) { return null; }
-}
+const asCover = (url: string | null) => (url ? { src: url } : null);
 
 // 精简文本：只留一句 / 几个字
 function brief(s: string | undefined, n = 18) {
@@ -84,7 +73,7 @@ const count = topic.type === 'blog' ? blogPosts.length : topic.type === 'talk' ?
               date={p.data.pubDate}
               tags={p.data.tags ?? []}
               index={i}
-              image={await thumb(i)}
+              image={asCover(coverURL(base, p.data.cover)) ?? await makeCover(i, [480, 960])}
             />
           )))
         )}
@@ -102,7 +91,7 @@ const count = topic.type === 'blog' ? blogPosts.length : topic.type === 'talk' ?
               title={t.data.title ?? t.id}
               date={t.data.update}
               index={i}
-              image={await thumb(i)}
+              image={asCover(coverURL(base, t.data.cover)) ?? await makeCover(i, [480, 960])}
             />
           )))
         )}
@@ -120,7 +109,7 @@ const count = topic.type === 'blog' ? blogPosts.length : topic.type === 'talk' ?
               title={a.data.name}
               tags={a.data.tags ?? []}
               index={i}
-              image={await thumb(i)}
+              image={asCover(coverURL(base, a.data.cover)) ?? await makeCover(i, [480, 960])}
             />
           )))
         )}

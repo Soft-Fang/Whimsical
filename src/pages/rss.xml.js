@@ -1,11 +1,11 @@
 // RSS 订阅源：构建时生成 /rss.xml，读者可用 RSS 阅读器订阅
 
 import rss from '@astrojs/rss';
-import { getCollection } from 'astro:content';
+import { getPublishedPosts } from '../lib/posts';
 import { site } from '../site.config';
 
 export async function GET(context) {
-  const posts = await getCollection('blog');
+  const posts = await getPublishedPosts();
   return rss({
     title: site.defaultTitle,
     description: site.description,

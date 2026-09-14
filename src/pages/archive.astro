@@ -1,30 +1,41 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { getCollection } from 'astro:content';
+import { getPublishedPosts } from '../lib/posts';
 
 const base = import.meta.env.BASE_URL;
-const posts = (await getCollection('blog')).sort(
+const posts = (await getPublishedPosts()).sort(
   (a, b) => b.data.pubDate.localeCompare(a.data.pubDate)
 );
+
+// 标签配色（按出现顺序分配）
+const PALETTE = ['#5b9dff', '#ff9eb5', '#7fd1a8', '#ffd166', '#c792ea', '#ff8a5c', '#64d8ff', '#ff7aa2', '#9be15d', '#6c8cff'];
+const tagColor: Record<string, string> = {};
+posts.forEach((p) => (p.data.tags ?? []).forEach((t: string) => {
+  if (!tagColor[t]) tagColor[t] = PALETTE[Object.keys(tagColor).length % PALETTE.length];
+}));
+const colorOf = (tags?: string[]) => (tags && tags[0] && tagColor[tags[0]]) || '#94a3b8';
+
 const data = posts.map((p) => ({
   id: p.id,
   title: p.data.title,
   pubDate: p.data.pubDate,
   references: p.data.references ?? [],
+  tags: p.data.tags ?? [],
+  color: colorOf(p.data.tags),
 }));
-const dataJson = JSON.stringify(data);
+const dataJson = JSON.stringify({ posts: data, tagColor });
 ---
 <BaseLayout title="归档" description="文章星空图">
   <div id="archive-app" data-base={base} class="max-w-5xl mx-auto px-6 pt-24 pb-16">
     <p class="text-xs tracking-[0.3em] uppercase text-fg/30 mb-3">ARCHIVE / 归档</p>
-    <h1 class="text-3xl font-bold mb-6">归档 · 星空图</h1>
-    <p class="text-sm text-fg/50 mb-6">光球围绕中心旋转；右侧树点选文章，或单击光球选中后停止旋转，双击进入文章。</p>
+    <h1 class="text-3xl font-bold mb-2">归档 · 星空图</h1>
 
     <div id="archive-data" hidden>{dataJson}</div>
 
     <div class="flex flex-col md:flex-row gap-6 items-start">
-      <div class="flex-1 w-full">
-        <canvas id="starfield" class="w-full block rounded-2xl backdrop-blur-xl bg-bg/25 ring-1 ring-fg/10" style="height: 520px;"></canvas>
+      <div class="relative flex-1 w-full">
+        <canvas id="starfield" class="w-full block rounded-2xl backdrop-blur-xl bg-bg/25 ring-1 ring-fg/10" style="height: 540px;"></canvas>
+        <div id="archive-card" class="hidden absolute z-20 w-60 rounded-xl p-3 ring-1 ring-fg/10 bg-bg/90 backdrop-blur-xl shadow-xl"></div>
       </div>
       <aside class="w-full md:w-56 shrink-0">
         <p class="text-xs uppercase text-fg/30 mb-3">时间轴</p>
@@ -33,9 +44,11 @@ const dataJson = JSON.stringify(data);
     </div>
 
     <div class="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-fg/50">
-      <span class="inline-flex items-center gap-2"><span class="inline-block w-6 h-0.5 bg-accent"></span>引用（我引用了谁）</span>
-      <span class="inline-flex items-center gap-2"><span class="inline-block w-6 h-0.5 bg-fg/60"></span>被引用（谁引用了我）</span>
+      <span class="inline-flex items-center gap-2"><span class="inline-block w-6 h-0.5 bg-accent"></span>引用</span>
+      <span class="inline-flex items-center gap-2"><span class="inline-block w-6 h-0.5 bg-fg/60"></span>被引用</span>
     </div>
+
+    <div id="archive-legend" class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-fg/50"></div>
   </div>
 
   <div id="archive-tooltip"></div>
@@ -43,34 +56,47 @@ const dataJson = JSON.stringify(data);
 
 <style is:global>
   #archive-tooltip {
-    position: fixed;
-    z-index: 999;
-    display: none;
-    pointer-events: none;
-    max-width: 260px;
-    padding: 6px 10px;
-    border-radius: 8px;
+    position: fixed; z-index: 999; display: none; pointer-events: none;
+    max-width: 260px; padding: 6px 10px; border-radius: 8px;
     background: color-mix(in srgb, var(--c-bg) 88%, transparent);
-    color: var(--c-fg);
-    font-size: 13px;
-    line-height: 1.5;
+    color: var(--c-fg); font-size: 13px; line-height: 1.5;
     box-shadow: 0 6px 20px rgba(0,0,0,0.12);
   }
-  .tree-year { margin-top: 12px; font-weight: 600; color: var(--c-fg); }
-  .tree-month { margin: 6px 0 2px; padding-left: 12px; font-size: 12px; color: var(--c-fg); opacity: 0.5; }
+  /* 时间轴：左侧虚线 + 各级圆点 */
+  #archive-timeline { position: relative; padding-left: 18px; }
+  #archive-timeline::before {
+    content: ''; position: absolute; left: 5px; top: 8px; bottom: 8px;
+    border-left: 1px dashed color-mix(in srgb, var(--c-fg) 22%, transparent);
+  }
+  .tree-year { position: relative; margin-top: 14px; font-weight: 600; color: var(--c-fg); }
+  .tree-year:first-child { margin-top: 2px; }
+  .tree-year::before {
+    content: ''; position: absolute; left: -13px; top: 50%;
+    width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
+    background: var(--c-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-bg) 90%, transparent);
+  }
+  .tree-month { position: relative; margin: 6px 0 2px; padding-left: 8px; font-size: 12px; color: var(--c-fg); opacity: 0.5; }
+  .tree-month::before {
+    content: ''; position: absolute; left: -13px; top: 50%;
+    width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%;
+    background: color-mix(in srgb, var(--c-fg) 45%, transparent);
+  }
   .tree-item {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 4px 8px 4px 24px;
-    border-radius: 8px;
-    font-size: 13px;
-    color: var(--c-fg);
-    opacity: 0.75;
+    position: relative; display: block; width: 100%; text-align: left;
+    padding: 4px 8px 4px 18px; border-radius: 8px; font-size: 13px;
+    color: var(--c-fg); opacity: 0.75;
     transition: opacity .15s ease, background-color .15s ease;
+  }
+  .tree-item::before {
+    content: ''; position: absolute; left: -13px; top: 50%;
+    width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%;
+    background: color-mix(in srgb, var(--c-fg) 30%, transparent);
+    transition: background-color .15s ease, transform .15s ease;
   }
   .tree-item:hover { opacity: 1; background: color-mix(in srgb, var(--c-fg) 6%, transparent); }
   .tree-item.active { opacity: 1; color: var(--c-accent); background: color-mix(in srgb, var(--c-accent) 12%, transparent); }
+  .tree-item.active::before { background: var(--c-accent); transform: scale(1.5); }
 </style>
 
 <script>
@@ -80,78 +106,123 @@ const dataJson = JSON.stringify(data);
   const canvas = document.getElementById('starfield');
   const timeline = document.getElementById('archive-timeline');
   const tooltip = document.getElementById('archive-tooltip');
+  const card = document.getElementById('archive-card');
+  const legendEl = document.getElementById('archive-legend');
   if (!dataEl || !app || !canvas) return;
 
   const base = app.dataset.base || '/';
-  let posts = [];
-  try { posts = JSON.parse(dataEl.textContent.trim()); } catch (e) { posts = []; }
+  let parsed = { posts: [], tagColor: {} };
+  try { parsed = JSON.parse(dataEl.textContent.trim()); } catch (e) {}
+  const posts = parsed.posts || [];
+  const tagColor = parsed.tagColor || {};
   const ctx = canvas.getContext('2d');
 
   const css = getComputedStyle(document.documentElement);
   const accent = css.getPropertyValue('--c-accent').trim() || '#2563eb';
   const fg = css.getPropertyValue('--c-fg').trim() || '#1a1a1a';
+  const UNTAGGED = '#94a3b8';
 
-  const PALETTE = ['#5b9dff', '#ff9eb5', '#7fd1a8', '#ffd166', '#c792ea', '#ff8a5c', '#64d8ff', '#ff7aa2', '#9be15d', '#6c8cff'];
+  const INNER = 0.21;
+  const OUTER = 0.34;
+  const OMEGA_BASE = 0.019;
 
-  let cssW = 0;
-  let cssH = 0;
+  let cssW = 0, cssH = 0, cx = 0, cy = 0;
   let selectedId = null;
   let frozenIds = new Set();
-  let lastClickTime = 0;
-  let lastClickId = null;
-  let lastTreeClickTime = 0;
-  let lastTreeClickId = null;
+  let lastClickTime = 0, lastClickId = null;
+  let lastTreeClickTime = 0, lastTreeClickId = null;
+  let mouseX = -9999, mouseY = -9999;
+  let startTime = performance.now();
+
+  const view = { zoom: 1 };
   const orbs = [];
   const orbsById = {};
+  const allTags = Object.keys(tagColor);
 
-  function hashStr(s) {
-    let h = 0;
-    for (let i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) >>> 0; }
-    return h / 4294967295;
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+  }
+  function isDark() { return document.documentElement.getAttribute('data-theme') === 'dark'; }
+  function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+  function buildLegend() {
+    if (!legendEl) return;
+    legendEl.innerHTML = allTags.map(function (t) {
+      return '<span class="inline-flex items-center gap-1.5"><span class="inline-block h-2.5 w-2.5 rounded-full" style="background:' + tagColor[t] + '"></span>' + esc(t) + '</span>';
+    }).join('');
+  }
+
+  const dates = posts.map(function (p) { return String(p.pubDate); }).sort();
+  const dMin = dates.length ? new Date(dates[0]).getTime() : 0;
+  const dMax = dates.length ? new Date(dates[dates.length - 1]).getTime() : 1;
+  function radiusFromDate(date) {
+    const t = new Date(String(date)).getTime();
+    const k = dMax > dMin ? (t - dMin) / (dMax - dMin) : 1;
+    return OUTER - k * (OUTER - INNER);
   }
 
   function setup() {
-    posts.forEach(function (p) {
+    posts.forEach(function (p, i) {
+      const rf = radiusFromDate(p.pubDate);
       const o = {
-        id: p.id,
-        title: p.title,
-        pubDate: p.pubDate,
-        refs: p.references || [],
-        color: PALETTE[Math.floor(hashStr(p.id) * PALETTE.length) % PALETTE.length],
-        r: 5,
-        cx: 0,
-        cy: 0,
-        radiusFactor: 0.16 + hashStr(p.id + ':r') * 0.28,
+        id: p.id, title: p.title, pubDate: p.pubDate,
+        tags: p.tags || [], refs: p.references || [],
+        color: p.color || UNTAGGED,
+        r: 5, cx: 0, cy: 0,
+        radiusFactor: rf,
         theta: Math.random() * Math.PI * 2,
-        omega: (0.009 + Math.random() * 0.012) * (Math.random() < 0.5 ? 1 : -1),
-        R: 0,
-        x: 0,
-        y: 0,
-        trail: []
+        omega: OMEGA_BASE * (INNER / rf),
+        R: 0, Rcur: 0, x: 0, y: 0,
+        trail: [], hover: 0, intro: 0, introDelay: i * 110, pulse: -1,
       };
       orbs.push(o);
       orbsById[p.id] = o;
     });
   }
 
+  let bg = document.createElement('canvas');
+  function buildBg(dpr) {
+    bg.width = Math.round(cssW * dpr);
+    bg.height = Math.round(cssH * dpr);
+    const b = bg.getContext('2d');
+    b.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const minDim = Math.min(cssW, cssH);
+    [
+      { x: cssW * 0.26, y: cssH * 0.30, r: minDim * 0.62, c: 'rgba(124,108,255,0.13)' },
+      { x: cssW * 0.78, y: cssH * 0.70, r: minDim * 0.58, c: 'rgba(34,211,238,0.10)' },
+      { x: cssW * 0.62, y: cssH * 0.22, r: minDim * 0.46, c: 'rgba(240,98,146,0.09)' },
+    ].forEach(function (bl) {
+      const g = b.createRadialGradient(bl.x, bl.y, 0, bl.x, bl.y, bl.r);
+      g.addColorStop(0, bl.c); g.addColorStop(1, 'rgba(0,0,0,0)');
+      b.fillStyle = g; b.fillRect(0, 0, cssW, cssH);
+    });
+    const rgb = isDark() ? '255,255,255' : '50,50,80';
+    const n = Math.max(60, Math.round((cssW * cssH) / 8000));
+    for (let i = 0; i < n; i++) {
+      const x = Math.random() * cssW, y = Math.random() * cssH;
+      const rr = 0.3 + Math.random() * 1.1, a = 0.12 + Math.random() * 0.42;
+      b.fillStyle = 'rgba(' + rgb + ',' + a.toFixed(3) + ')';
+      b.beginPath(); b.arc(x, y, rr, 0, Math.PI * 2); b.fill();
+    }
+  }
+
   function resize() {
     cssW = canvas.clientWidth || canvas.parentElement.clientWidth || 800;
-    cssH = parseInt(canvas.style.height, 10) || 520;
+    cssH = parseInt(canvas.style.height, 10) || 540;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const cx = cssW / 2;
-    const cy = cssH / 2;
+    cx = cssW / 2; cy = cssH / 2;
     const minDim = Math.min(cssW, cssH);
     orbs.forEach(function (o) {
-      o.cx = cx;
-      o.cy = cy;
-      o.R = Math.min(o.radiusFactor * minDim, minDim / 2 - 28);
-      o.x = cx + o.R * Math.cos(o.theta);
-      o.y = cy + o.R * Math.sin(o.theta);
-      o.trail.length = 0;
+      o.cx = cx; o.cy = cy;
+      o.R = Math.min(o.radiusFactor * minDim, minDim / 2 - 30);
+      o.Rstart = Math.max(o.R * 1.9, minDim * 0.55);
     });
+    buildBg(dpr);
   }
 
   function recomputeFrozen() {
@@ -161,120 +232,225 @@ const dataJson = JSON.stringify(data);
     const sel = orbsById[selectedId];
     if (!sel) return;
     (sel.refs || []).forEach(function (r) { frozenIds.add(r); });
-    orbs.forEach(function (o) {
-      if ((o.refs || []).indexOf(selectedId) >= 0) frozenIds.add(o.id);
-    });
+    orbs.forEach(function (o) { if ((o.refs || []).indexOf(selectedId) >= 0) frozenIds.add(o.id); });
   }
 
   function updateOrb(o) {
     o.theta += o.omega;
-    o.x = o.cx + o.R * Math.cos(o.theta);
-    o.y = o.cy + o.R * Math.sin(o.theta);
+    o.x = o.cx + o.Rcur * Math.cos(o.theta);
+    o.y = o.cy + o.Rcur * Math.sin(o.theta);
     o.trail.push({ x: o.x, y: o.y });
-    if (o.trail.length > 24) o.trail.shift();
+    if (o.trail.length > 26) o.trail.shift();
   }
 
-  function line(a, b, color, width, dash) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
-    ctx.setLineDash(dash || []);
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-    ctx.setLineDash([]);
+  function toScreen(x, y) {
+    return { x: (x - cx) * view.zoom + cx, y: (y - cy) * view.zoom + cy };
+  }
+  function toWorld(x, y) {
+    return { x: (x - cx) / view.zoom + cx, y: (y - cy) / view.zoom + cy };
   }
 
-  function drawConnections() {
+  function drawOrbits() {
+    ctx.save();
+    ctx.lineWidth = 1; ctx.setLineDash([3, 7]);
+    orbs.forEach(function (o) {
+      ctx.globalAlpha = 0.085 * o.intro;
+      ctx.strokeStyle = o.color;
+      ctx.beginPath(); ctx.arc(o.cx, o.cy, o.R, 0, Math.PI * 2); ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function drawCore(t) {
+    const minDim = Math.min(cssW, cssH);
+    const pulse = 1 + Math.sin(t / 900) * 0.07;
+    const R = minDim * 0.085 * pulse;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 2.6);
+    g.addColorStop(0, 'rgba(168,85,247,0.55)');
+    g.addColorStop(0.35, 'rgba(34,211,238,0.18)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, R * 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.beginPath(); ctx.arc(cx, cy, R * 0.16, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // A4：默认把所有引用关系连成「星座」（不选中时也可见）
+  function drawConstellation() {
+    const dim = selectedId ? 0.06 : 0.30;
+    ctx.save();
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 1.15;
+    ctx.shadowColor = accent;
+    ctx.shadowBlur = selectedId ? 0 : 6;
+    orbs.forEach(function (o) {
+      if (o.intro < 0.55) return;
+      (o.refs || []).forEach(function (rid) {
+        const tg = orbsById[rid];
+        if (!tg || tg.intro < 0.55) return;
+        ctx.globalAlpha = dim * Math.min(o.intro, tg.intro);
+        ctx.beginPath();
+        ctx.moveTo(o.x, o.y);
+        ctx.lineTo(tg.x, tg.y);
+        ctx.stroke();
+      });
+    });
+    ctx.restore();
+  }
+
+  function drawSelectedLinks() {
     if (!selectedId) return;
     const sel = orbsById[selectedId];
     if (!sel) return;
-    (sel.refs || []).forEach(function (refId) {
-      const t = orbsById[refId];
-      if (t) line(sel, t, accent, 1.5, []);
+    ctx.save();
+    ctx.strokeStyle = accent; ctx.lineWidth = 1.8;
+    ctx.shadowColor = accent; ctx.shadowBlur = 8;
+    (sel.refs || []).forEach(function (rid) {
+      const tg = orbsById[rid];
+      if (!tg) return;
+      ctx.beginPath(); ctx.moveTo(sel.x, sel.y); ctx.lineTo(tg.x, tg.y); ctx.stroke();
     });
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = fg; ctx.lineWidth = 1.3; ctx.setLineDash([5, 4]);
     orbs.forEach(function (o) {
-      if ((o.refs || []).indexOf(selectedId) >= 0) line(o, sel, fg, 1.2, [5, 4]);
+      if ((o.refs || []).indexOf(selectedId) >= 0) {
+        ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(sel.x, sel.y); ctx.stroke();
+      }
     });
+    ctx.restore();
   }
 
-  function drawOrb(o, isSel, isConn) {
-    const trail = o.trail;
-    for (let i = 1; i < trail.length; i++) {
-      const a = (i / trail.length) * 0.8;
-      ctx.globalAlpha = a;
+  function drawPulse(o, now, radius) {
+    const period = 1500;
+    for (let k = 0; k < 2; k++) {
+      const tt = ((now - o.pulse + k * period / 2) % period) / period;
+      if (tt < 0) continue;
+      ctx.globalAlpha = (1 - tt) * 0.5;
       ctx.strokeStyle = o.color;
-      ctx.lineWidth = (i / trail.length) * 3.2;
-      ctx.beginPath();
-      ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
-      ctx.lineTo(trail[i].x, trail[i].y);
-      ctx.stroke();
+      ctx.lineWidth = 1.6 * (1 - tt) + 0.4;
+      ctx.beginPath(); ctx.arc(o.x, o.y, radius + 5 + tt * 52, 0, Math.PI * 2); ctx.stroke();
     }
     ctx.globalAlpha = 1;
-
-    ctx.shadowColor = o.color;
-    ctx.shadowBlur = isSel ? 26 : (isConn ? 20 : 14);
-    ctx.fillStyle = o.color;
-    ctx.beginPath();
-    ctx.arc(o.x, o.y, o.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.beginPath();
-    ctx.arc(o.x, o.y, o.r * 0.52, 0, Math.PI * 2);
-    ctx.fill();
-
-    if (isSel || isConn) {
-      ctx.strokeStyle = isSel ? '#ffffff' : 'rgba(255,255,255,0.55)';
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.arc(o.x, o.y, o.r + 5, 0, Math.PI * 2);
-      ctx.stroke();
-    }
   }
 
-  function draw() {
+  function drawOrb(o, isSel, isConn, now) {
+    const boost = o.hover || 0;
+    const radius = o.r * (1 + boost * 0.55) * (isSel ? 1.3 : 1);
+    const alpha = easeOut(o.intro);
+    if (o.trail.length > 1 && o.intro > 0.2) {
+      ctx.save();
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = o.color;
+      for (let i = 1; i < o.trail.length; i++) {
+        const p = i / o.trail.length;
+        ctx.globalAlpha = Math.pow(p, 1.7) * (0.62 + boost * 0.3) * alpha;
+        ctx.lineWidth = Math.pow(p, 1.25) * (3.0 + boost * 1.6);
+        ctx.beginPath();
+        ctx.moveTo(o.trail[i - 1].x, o.trail[i - 1].y);
+        ctx.lineTo(o.trail[i].x, o.trail[i].y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    ctx.globalAlpha = alpha;
+    if (isSel && o.pulse > 0) drawPulse(o, now, radius);
+    ctx.shadowColor = o.color;
+    ctx.shadowBlur = isSel ? 28 : (isConn ? 20 : 12 + boost * 22);
+    ctx.fillStyle = o.color;
+    ctx.beginPath(); ctx.arc(o.x, o.y, radius, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.85 + boost * 0.15).toFixed(2) + ')';
+    ctx.beginPath(); ctx.arc(o.x, o.y, radius * 0.5, 0, Math.PI * 2); ctx.fill();
+    if (isSel || isConn) {
+      ctx.strokeStyle = isSel ? '#ffffff' : 'rgba(255,255,255,0.6)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(o.x, o.y, radius + 5, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function draw(now) {
     ctx.clearRect(0, 0, cssW, cssH);
-    drawConnections();
+    if (bg.width) ctx.drawImage(bg, 0, 0, cssW, cssH);
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(view.zoom, view.zoom);
+    ctx.translate(-cx, -cy);
+    drawOrbits();
+    drawCore(now || 0);
+    drawConstellation();
+    drawSelectedLinks();
     const sel = selectedId ? orbsById[selectedId] : null;
     orbs.forEach(function (o) {
       const isSel = sel && o.id === sel.id;
       const isConn = sel && o.id !== sel.id && frozenIds.has(o.id);
-      drawOrb(o, Boolean(isSel), Boolean(isConn));
+      drawOrb(o, Boolean(isSel), Boolean(isConn), now || 0);
     });
+    ctx.restore();
   }
 
-  function frame() {
-    orbs.forEach(function (o) {
-      if (frozenIds.has(o.id)) { o.trail.length = 0; return; }
-      updateOrb(o);
-    });
-    draw();
+  function frame(now) {
     requestAnimationFrame(frame);
+    if (!cssW) return;
+    const HOVER_R = 95;
+    orbs.forEach(function (o) {
+      const e = now - startTime - o.introDelay;
+      o.intro = e <= 0 ? 0 : Math.min(1, e / 900);
+      const er = easeOut(o.intro);
+      o.Rcur = o.Rstart + (o.R - o.Rstart) * er;
+      if (frozenIds.has(o.id)) { o.trail.length = 0; } else { updateOrb(o); }
+      const d = Math.hypot(o.x - mouseX, o.y - mouseY);
+      const target = d < HOVER_R ? (1 - d / HOVER_R) : 0;
+      o.hover += (target - o.hover) * 0.16;
+    });
+    draw(now);
   }
 
   function hitTest(mx, my) {
-    let best = null;
-    let bd = 18;
+    let best = null, bd = 20;
     for (const o of orbs) {
+      if (o.intro < 0.6) continue;
       const d = Math.hypot(o.x - mx, o.y - my);
       if (d < bd) { bd = d; best = o; }
     }
     return best;
   }
-
   function mousePos(e) {
     const rect = canvas.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
+  function showCard(o) {
+    if (!card) return;
+    const tagHtml = (o.tags || []).map(function (t) {
+      const c = tagColor[t] || UNTAGGED;
+      return '<span class="rounded-full px-2 py-0.5 text-[10px]" style="background:' + c + '2e;color:' + c + '">#' + esc(t) + '</span>';
+    }).join('');
+    card.innerHTML =
+      '<button type="button" id="archive-card-close" class="absolute right-2 top-2 text-fg/35 hover:text-fg/70" aria-label="关闭">×</button>' +
+      '<div class="text-[11px] font-mono text-fg/40 mb-1">' + esc(o.pubDate) + '</div>' +
+      '<div class="text-sm font-bold leading-snug text-fg mb-2">' + esc(o.title) + '</div>' +
+      (tagHtml ? '<div class="flex flex-wrap gap-1 mb-2">' + tagHtml + '</div>' : '') +
+      '<a href="' + base + 'blog/' + encodeURIComponent(o.id) + '" class="text-xs text-accent hover:underline">阅读全文 →</a>';
+    const sp = toScreen(o.x, o.y);
+    const x = Math.min(Math.max(sp.x + 16, 8), Math.max(8, cssW - 250));
+    const y = Math.min(Math.max(sp.y - 24, 8), Math.max(8, cssH - 150));
+    card.style.left = x + 'px'; card.style.top = y + 'px';
+    card.classList.remove('hidden');
+    const cb = card.querySelector('#archive-card-close');
+    if (cb) cb.addEventListener('click', function (ev) { ev.stopPropagation(); select(o.id); });
+  }
+  function hideCard() { if (card) card.classList.add('hidden'); }
+
   function select(id) {
     selectedId = (selectedId === id) ? null : id;
     recomputeFrozen();
     updateTreeActive();
+    if (selectedId && orbsById[selectedId]) {
+      const o = orbsById[selectedId];
+      o.pulse = performance.now();
+      showCard(o);
+    } else { hideCard(); }
   }
-
   function updateTreeActive() {
     timeline.querySelectorAll('.tree-item').forEach(function (b) {
       b.classList.toggle('active', b.dataset.id === selectedId);
@@ -283,7 +459,9 @@ const dataJson = JSON.stringify(data);
 
   canvas.addEventListener('mousemove', function (e) {
     const m = mousePos(e);
-    const p = hitTest(m.x, m.y);
+    const w = toWorld(m.x, m.y);
+    mouseX = w.x; mouseY = w.y;
+    const p = hitTest(w.x, w.y);
     if (p) {
       canvas.style.cursor = 'pointer';
       tooltip.textContent = p.title + ' · ' + p.pubDate;
@@ -295,12 +473,27 @@ const dataJson = JSON.stringify(data);
       tooltip.style.display = 'none';
     }
   });
-
+  canvas.addEventListener('mouseleave', function () {
+    mouseX = -9999; mouseY = -9999;
+    tooltip.style.display = 'none';
+  });
+  // D3：Esc 取消选中并关闭信息卡
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (selectedId) { selectedId = null; recomputeFrozen(); updateTreeActive(); }
+    hideCard();
+    tooltip.style.display = 'none';
+  });
+  canvas.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    view.zoom = Math.max(0.55, Math.min(2.6, view.zoom * Math.exp(-e.deltaY * 0.0012)));
+  }, { passive: false });
   canvas.addEventListener('click', function (e) {
     const m = mousePos(e);
-    const p = hitTest(m.x, m.y);
+    const w = toWorld(m.x, m.y);
+    const p = hitTest(w.x, w.y);
     if (!p) {
-      if (selectedId) { selectedId = null; recomputeFrozen(); updateTreeActive(); }
+      if (selectedId) { selectedId = null; recomputeFrozen(); updateTreeActive(); hideCard(); }
       lastClickId = null;
       return;
     }
@@ -309,28 +502,24 @@ const dataJson = JSON.stringify(data);
       window.location.href = base + 'blog/' + p.id;
       return;
     }
-    lastClickTime = now;
-    lastClickId = p.id;
+    lastClickTime = now; lastClickId = p.id;
     select(p.id);
   });
 
   const byYear = {};
   posts.forEach(function (p) {
-    const y = p.pubDate.slice(0, 4);
-    const m = p.pubDate.slice(5, 7);
+    const y = p.pubDate.slice(0, 4), m = p.pubDate.slice(5, 7);
     if (!byYear[y]) byYear[y] = {};
     if (!byYear[y][m]) byYear[y][m] = [];
     byYear[y][m].push(p);
   });
-  const years = Object.keys(byYear).sort().reverse();
   let html = '';
-  years.forEach(function (y) {
+  Object.keys(byYear).sort().reverse().forEach(function (y) {
     html += '<div class="tree-year">' + y + '</div>';
-    const months = Object.keys(byYear[y]).sort().reverse();
-    months.forEach(function (m) {
+    Object.keys(byYear[y]).sort().reverse().forEach(function (m) {
       html += '<div class="tree-month">' + m + '月</div>';
       byYear[y][m].forEach(function (p) {
-        html += '<button type="button" class="tree-item" data-id="' + p.id + '">' + p.title + '</button>';
+        html += '<button type="button" class="tree-item" data-id="' + esc(p.id) + '">' + esc(p.title) + '</button>';
       });
     });
   });
@@ -344,14 +533,16 @@ const dataJson = JSON.stringify(data);
       window.location.href = base + 'blog/' + id;
       return;
     }
-    lastTreeClickTime = now;
-    lastTreeClickId = id;
+    lastTreeClickTime = now; lastTreeClickId = id;
     select(id);
   });
 
+  buildLegend();
   setup();
   resize();
+  startTime = performance.now();
   window.addEventListener('resize', resize);
+  document.addEventListener('themechange', function () { buildBg(window.devicePixelRatio || 1); });
   requestAnimationFrame(frame);
 })();
 </script>

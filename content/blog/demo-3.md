@@ -4,6 +4,7 @@ description: "示例文章：学习笔记类。"
 pubDate: "2026-06-05"
 status: "published"
 tags: ["学习", "笔记"]
+references: ["demo-1", "demo-4"]
 ---
 
 示例正文，可随时删除。`n`n线性表、栈与队列的基本操作整理，重点记录了时间复杂度的对比。
