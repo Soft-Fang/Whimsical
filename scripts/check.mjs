@@ -250,7 +250,7 @@ const bigImages = [...walk('src/assets'), ...walk('public')].filter((i) => i.siz
 report.stats.bigImages = bigImages.length;
 if (bigImages.length) {
   info(`有 ${bigImages.length} 张图片超过 3MB（构建会变慢，建议压缩）：`);
-  bigImages.sort((a, b) => b.size - a.size).slice(0, 5).forEach((i) => info(`  ${i.rel} — ${(i.size / 1024 / 1024).toFixed(1)}MB`));
+  bigImages.sort((a, b) => b.size - a.size).slice(0, 5).forEach((i) => info(`  ${i.rel} — ${(i.size / 1024 / 1024).toFixed(1)}MB`, { code: 'IMAGE_TOO_LARGE', file: i.rel, sizeMB: Number((i.size / 1024 / 1024).toFixed(1)), fix: '运行 npm run compress -- --write' }));
 }
 
 // ── 7. 泄密风险扫描（针对 git 已跟踪文件）──
