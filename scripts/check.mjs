@@ -282,7 +282,9 @@ function secretScan() {
   }
   for (const rel of paths) {
     if (!/\.md$/.test(rel) || !/^content\//.test(rel)) continue;
-    const content = readFileSync(join(root, rel), 'utf8');
+    const abs = join(root, rel);
+    if (!existsSync(abs)) continue; // 已被删除但还没提交的文件，跳过
+    const content = readFileSync(abs, 'utf8');
     if (content.includes('PRIVATE_PASSWORD')) warn(`${rel} 中出现 PRIVATE_PASSWORD 字样，请确认未泄露真实密码`);
   }
 }
